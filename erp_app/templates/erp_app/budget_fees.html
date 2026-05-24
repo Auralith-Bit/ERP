@@ -1,0 +1,190 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Budget & Fees{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
+    <div class="header-info">
+        <h1>Budget & Fees</h1>
+        <p>Manage financials, fees, and budget allocations</p>
+    </div>
+</header>
+
+<div class="stats-grid" style="margin-bottom:25px;">
+    <div class="stat-card">
+        <span>Total Revenue</span>
+        <h3 id="totalRevenue">Rs.0</h3>
+    </div>
+    <div class="stat-card">
+        <span>Pending Fees</span>
+        <h3 id="pendingFees">Rs.0</h3>
+    </div>
+    <div class="stat-card">
+        <span>Collected Fees</span>
+        <h3 id="collectedFees">Rs.0</h3>
+    </div>
+    <div class="stat-card primary">
+        <span>Active Projects</span>
+        <h3>{{ projects.count }}</h3>
+    </div>
+</div>
+
+<div class="main-grid">
+    <div class="data-card">
+        <div class="card-header" style="align-items:center;justify-content:space-between;">
+            <h3>Fee Structure</h3>
+            {% if is_admin %}
+            <button type="button" id="addFeeBtn" class="btn-text">Add Fee</button>
+            {% endif %}
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Fee Amount</th>
+                    <th>Paid</th>
+                    <th>Pending</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="feeTableBody"></tbody>
+        </table>
+    </div>
+    <div class="data-card side">
+        <h3>Project Budgets</h3>
+        {% if projects %}
+            {% for project in projects %}
+            <div class="project-item">
+                <p>{{ project.name }}</p>
+                <div class="progress-bar"><div style="width: {{ project.progress_percentage }}%"></div></div>
+                <small style="color:#64748B;">Budget: Rs.{{ project.budget|floatformat:2 }}</small>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color:#94a3b8;font-size:14px;">No project budgets available.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    const isAdmin = {{ is_admin|yesno:'true,false' }};
+    const storageKey = 'auralithFeeStructure';
+    const coursesList = [{% for course in courses %}{id: 'c{{ course.id }}', name: '{{ course.name|escapejs }}'},{% endfor %}];
+    const projectsList = [{% for project in projects %}{id: 'p{{ project.id }}', name: '{{ project.name|escapejs }}', budget: {{ project.budget|floatformat:2 }}},{% endfor %}];
+
+    // initial entries: courses with zeroed fees, projects seeded with their budget
+    const initialFees = [];
+    coursesList.forEach(c => initialFees.push({id: c.id, type: 'course', name: c.name, fee: 0, paid: 0, pending: 0}));
+    projectsList.forEach(p => initialFees.push({id: p.id, type: 'project', name: p.name, fee: Number(p.budget)||0, paid: 0, pending: Number(p.budget)||0}));
+
+    function normalizeFeeItem(item) {
+        if (!item || typeof item !== 'object') return null;
+        const name = item.name || item.course || item.title || 'Unnamed item';
+        const fee = Number(item.fee ?? item.amount ?? 0) || 0;
+        const paid = Number(item.paid ?? 0) || 0;
+        const pending = Number(item.pending ?? Math.max(0, fee - paid)) || 0;
+        const type = item.type || (item.id && item.id.toString().startsWith('p') ? 'project' : 'course');
+        const id = item.id || `${type === 'project' ? 'p' : 'c'}-${name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        return {id, type, name, fee, paid, pending};
+    }
+
+    function loadFees() {
+        const stored = localStorage.getItem(storageKey);
+        if (!stored) return initialFees;
+        try {
+            const parsed = JSON.parse(stored);
+            if (!Array.isArray(parsed)) return initialFees;
+            const normalized = parsed.map(normalizeFeeItem).filter(Boolean);
+            return normalized.length ? normalized : initialFees;
+        } catch (error) {
+            return initialFees;
+        }
+    }
+
+    function saveFees(fees) {
+        localStorage.setItem(storageKey, JSON.stringify(fees));
+    }
+
+    function renderFees() {
+        const fees = loadFees();
+        const body = document.getElementById('feeTableBody');
+        body.innerHTML = '';
+        let collected = 0;
+        let pending = 0;
+        let total = 0;
+        fees.forEach((item, index) => {
+            const row = document.createElement('tr');
+            const nameCell = `<td>${item.name} <small style="color:#64748B;display:block;font-size:11px;">${item.type==='project'? 'Project' : 'Course'}</small></td>`;
+            const feeCell = `<td>Rs.${Number(item.fee||0).toLocaleString()}</td>`;
+            const paidCell = `<td>Rs.${Number(item.paid||0).toLocaleString()}</td>`;
+            const pendingCell = `<td>Rs.${Number(item.pending||0).toLocaleString()}</td>`;
+
+            let actionCell = '<td>—</td>';
+            if (isAdmin) {
+                actionCell = `
+                    <td style="white-space:nowrap;">
+                        <span style="display:inline-flex;gap:0.25rem;align-items:center;flex-wrap:nowrap;">
+                            <button class="btn-text btn-add" type="button" data-index="${index}" style="border:1px solid #0f766e;background:#ecfeff;color:#0f766e;border-radius:6px;padding:2px 7px;font-size:0.85rem;min-width:48px;line-height:1;">Edit</button>
+                            <button class="btn-text btn-delete" type="button" data-index="${index}" style="border:1px solid #dc2626;background:#fee2e2;color:#b91c1c;border-radius:6px;padding:2px 7px;font-size:0.85rem;min-width:48px;line-height:1;">Delete</button>
+                        </span>
+                    </td>`;
+            }
+
+            row.innerHTML = nameCell + feeCell + paidCell + pendingCell + actionCell;
+
+            if (isAdmin) {
+                const addBtn = row.querySelector('.btn-add');
+                const delBtn = row.querySelector('.btn-delete');
+                if (addBtn) addBtn.addEventListener('click', () => handleAddEdit(index));
+                if (delBtn) delBtn.addEventListener('click', () => { fees.splice(index,1); saveFees(fees); renderFees(); });
+            }
+
+            body.appendChild(row);
+            collected += Number(item.paid||0);
+            pending += Number(item.pending||0);
+            total += Number(item.fee||0);
+        });
+        document.getElementById('totalRevenue').textContent = `Rs.${total.toLocaleString()}`;
+        document.getElementById('pendingFees').textContent = `Rs.${pending.toLocaleString()}`;
+        document.getElementById('collectedFees').textContent = `Rs.${collected.toLocaleString()}`;
+    }
+
+    function handleAddEdit(index) {
+        const fees = loadFees();
+        const item = fees[index];
+        const feeAmount = parseFloat(prompt('Enter full fee amount for ' + item.name + ':', item.fee || 0));
+        if (Number.isNaN(feeAmount)) { alert('Please enter a valid fee amount.'); return; }
+        const paidAmount = parseFloat(prompt('Enter paid amount for ' + item.name + ':', item.paid || 0));
+        if (Number.isNaN(paidAmount)) { alert('Please enter a valid paid amount.'); return; }
+        const pendingAmount = Math.max(0, feeAmount - paidAmount);
+        fees[index].fee = feeAmount;
+        fees[index].paid = paidAmount;
+        fees[index].pending = pendingAmount;
+        saveFees(fees);
+        renderFees();
+    }
+
+    function handleAddFee() {
+        const courseNames = coursesList.map(c => c.name).join(', ');
+        const name = prompt('Enter course name or choose from existing names:\n' + courseNames, coursesList.length ? coursesList[0].name : '');
+        if (!name) return;
+        const type = projectsList.some(p => p.name === name) ? 'project' : 'course';
+        const feeAmount = parseFloat(prompt('Enter total fee amount for ' + name + ':', '0'));
+        if (Number.isNaN(feeAmount)) { alert('Please enter a valid fee amount.'); return; }
+        const paidAmount = parseFloat(prompt('Enter paid amount for ' + name + ':', '0'));
+        if (Number.isNaN(paidAmount)) { alert('Please enter a valid paid amount.'); return; }
+        const pendingAmount = Math.max(0, feeAmount - paidAmount);
+        const fees = loadFees();
+        const newFee = {id: `${type[0]}-${Date.now()}`, type, name, fee: feeAmount, paid: paidAmount, pending: pendingAmount};
+        fees.push(newFee);
+        saveFees(fees);
+        renderFees();
+    }
+
+    const addFeeBtn = document.getElementById('addFeeBtn');
+    if (addFeeBtn) {
+        addFeeBtn.addEventListener('click', handleAddFee);
+    }
+
+    // Initial render
+    renderFees();
+</script>
+{% endblock %}

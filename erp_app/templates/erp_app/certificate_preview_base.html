@@ -1,0 +1,475 @@
+{% load static %}
+<style>
+.certificate-wrapper {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.certificate-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.auralith-certificate {
+    width: 100%;
+    min-height: 580px;
+    display: flex;
+    flex-direction: column;
+    background:
+        radial-gradient(circle at 92% 12%, rgba(118,57,171,0.42), transparent 24%),
+        radial-gradient(circle at 6% 88%, rgba(41,96,182,0.35), transparent 24%),
+        linear-gradient(135deg, #1c61b6 0%, #173f9a 20%, #4d2d9c 58%, #163f91 100%);
+    color: #153d68;
+    font-family: Georgia, 'Times New Roman', serif;
+    padding: 18px;
+    position: relative;
+    text-align: center;
+    box-shadow: 0 18px 46px rgba(15,23,42,0.2);
+}
+
+.auralith-certificate::before {
+    content: "";
+    position: absolute;
+    inset: 11px;
+    border: 3px solid #d9b55d;
+    pointer-events: none;
+}
+
+.certificate-panel {
+    align-items: center;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(26,75,141,0.04), transparent 38%),
+        radial-gradient(circle at 13% 25%, rgba(187,134,205,0.10), transparent 34%),
+        radial-gradient(circle at 82% 84%, rgba(225,191,128,0.10), transparent 35%),
+        linear-gradient(115deg, rgba(250,247,255,0.98), rgba(255,255,255,0.99) 46%, rgba(253,245,255,0.97));
+    outline: 2px solid #f4dda4;
+    outline-offset: -8px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 16px 40px 14px;
+    position: relative;
+    z-index: 1;
+}
+
+.certificate-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: space-evenly;
+    position: relative;
+    width: 100%;
+    z-index: 2;
+}
+
+.watermark {
+    left: 50%;
+    opacity: 0.052;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 360px;
+    z-index: 1;
+}
+
+.brand-row {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin: 0 0 4px;
+}
+
+.brand-row img {
+    height: 72px;
+    width: auto;
+}
+
+.brand-name {
+    color: #1A4B8D;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 32px;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 0.95;
+    text-transform: uppercase;
+}
+
+.tagline {
+    border-top: 1px solid rgba(26,75,141,0.25);
+    color: #475569;
+    display: inline-block;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    margin-top: 4px;
+    padding-top: 3px;
+}
+
+.title-row {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-top: 2px;
+}
+
+.title-line {
+    background: linear-gradient(90deg, transparent, #174879 72%, transparent);
+    height: 2px;
+    width: 70px;
+}
+
+.title-dot {
+    color: #9a6b2f;
+    font-size: 11px;
+    letter-spacing: 2px;
+}
+
+.cert-title {
+    color: #9c7136;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    line-height: 1;
+    margin: 0;
+    text-transform: uppercase;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.9), 0 0 2px rgba(105,74,26,0.2);
+    white-space: nowrap;
+}
+
+.under-title {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin: 2px auto 6px;
+}
+
+.under-title::before,
+.under-title::after {
+    background: linear-gradient(90deg, transparent, rgba(154,107,47,0.75), transparent);
+    content: "";
+    height: 1px;
+    width: 130px;
+}
+
+.under-title span {
+    color: #9a6b2f;
+    font-size: 11px;
+    letter-spacing: 3px;
+}
+
+.intro {
+    color: #16436f;
+    font-size: 17px;
+    font-style: italic;
+    font-weight: 700;
+    margin: 0 0 5px;
+}
+
+.recipient-line {
+    border-bottom: 2px solid rgba(26,75,141,0.58);
+    height: 28px;
+    margin: 0 auto 5px;
+    width: min(480px, 68%);
+}
+
+.student-name {
+    color: #153d68;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    padding-top: 3px;
+    padding-bottom: 4px;
+}
+
+.statement {
+    color: #153d68;
+    font-size: 15px;
+    font-style: italic;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 auto 3px;
+    max-width: 700px;
+}
+
+.middle-ornament {
+    align-items: center;
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    margin: 0 auto 4px;
+}
+
+.middle-ornament::before,
+.middle-ornament::after {
+    background: linear-gradient(90deg, transparent, rgba(26,75,141,0.26));
+    content: "";
+    height: 1px;
+    width: 170px;
+}
+
+.middle-ornament::after {
+    background: linear-gradient(90deg, rgba(26,75,141,0.26), transparent);
+}
+
+.middle-ornament span {
+    background: #b08a3f;
+    border-radius: 50%;
+    height: 6px;
+    position: relative;
+    width: 6px;
+}
+
+.middle-ornament span::before,
+.middle-ornament span::after {
+    background: #174879;
+    border-radius: 999px;
+    content: "";
+    height: 4px;
+    position: absolute;
+    top: 1px;
+    width: 11px;
+}
+
+.middle-ornament span::before {
+    right: 11px;
+}
+
+.middle-ornament span::after {
+    left: 11px;
+}
+
+.body-copy {
+    color: #153d68;
+    font-size: 14px;
+    font-style: italic;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 auto 4px;
+    max-width: 700px;
+}
+
+.appreciation {
+    border-top: 1px solid rgba(26,75,141,0.16);
+    color: #153d68;
+    font-size: 12px;
+    font-style: italic;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 auto 4px;
+    max-width: 680px;
+    padding-top: 4px;
+}
+
+.meta {
+    display: grid;
+    gap: 3px;
+    margin: 0 0 0 80px;
+    text-align: left;
+}
+
+.meta p {
+    color: #17426f;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-style: italic;
+    font-weight: 800;
+    line-height: 1;
+    margin: 0;
+}
+
+.signatures {
+    display: grid;
+    flex: 0 0 auto;
+    gap: 100px;
+    grid-template-columns: repeat(2, 170px);
+    justify-content: center;
+    margin-top: 4px;
+    position: relative;
+    width: 100%;
+    z-index: 3;
+}
+
+.signature {
+    text-align: center;
+}
+
+.signature-script {
+    color: rgba(21,61,104,0.72);
+    font-family: 'Brush Script MT', 'Segoe Script', cursive;
+    font-size: 16px;
+    height: 16px;
+    line-height: 1;
+    overflow: hidden;
+}
+
+.signature-line {
+    border-top: 1px solid rgba(26,75,141,0.5);
+    margin: 0 auto 3px;
+    width: 160px;
+}
+
+.signature-name {
+    color: #16436f;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.05;
+}
+
+.signature-title {
+    color: #16436f;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-top: 2px;
+}
+
+@media (max-width: 1000px) {
+    .auralith-certificate { padding: 14px; }
+    .certificate-panel { padding: 12px 28px 10px; }
+    .brand-row img { height: 56px; }
+    .brand-name { font-size: 24px; }
+    .cert-title { font-size: 24px; }
+    .title-line { width: 50px; }
+    .intro { font-size: 14px; margin-bottom: 4px; }
+    .student-name { font-size: 20px; }
+    .recipient-line { height: 22px; margin-bottom: 4px; }
+    .statement { font-size: 12px; }
+    .body-copy { font-size: 11px; }
+    .appreciation { font-size: 10px; margin-bottom: 3px; }
+    .meta { margin-left: 32px; }
+    .meta p { font-size: 12px; }
+    .signatures {
+        gap: 40px;
+        grid-template-columns: repeat(2, 130px);
+    }
+    .signature-line { width: 120px; }
+    .signature-name { font-size: 12px; }
+    .signature-title { font-size: 10px; }
+}
+
+@media (max-width: 720px) {
+    .auralith-certificate { aspect-ratio: auto; min-height: 520px; padding: 12px; }
+    .certificate-panel { padding: 12px 20px 90px; }
+    .brand-row { flex-direction: column; gap: 3px; }
+    .brand-row img { height: 36px; }
+    .title-line { display: none; }
+    .cert-title { font-size: 20px; }
+    .recipient-line { width: 80%; }
+    .meta { margin: 0 auto 14px; }
+    .signatures { gap: 12px; grid-template-columns: 1fr; }
+}
+
+@media print {
+    body { background: #fff; margin: 0; padding: 0; }
+    .sidebar, .top-nav, .certificate-actions, .messages { display: none !important; }
+    .workspace { margin-left: 0 !important; }
+    .content { padding: 0 !important; }
+    .certificate-wrapper { max-width: 100%; width: 100%; margin: 0; }
+    .auralith-certificate { box-shadow: none; break-inside: avoid; page-break-inside: avoid; }
+    @page { margin: 0; }
+}
+
+{% if is_pdf %}
+@page { margin: 0; size: 8.5in 11in; }
+html, body { margin: 0; padding: 0; width: 816px; height: 1056px; overflow: hidden; }
+.auralith-certificate {
+    box-sizing: border-box;
+    box-shadow: none;
+    height: 1056px;
+    min-height: 1056px;
+    padding: 18px;
+}
+.certificate-panel {
+    box-sizing: border-box;
+}
+.certificate-actions { display: none !important; }
+.certificate-wrapper {
+    max-width: 816px;
+    width: 100%;
+    height: 1056px;
+    margin: 0;
+}
+{% endif %}
+</style>
+
+<div class="certificate-wrapper">
+    {% if not is_pdf %}
+    <div class="certificate-actions">
+        <a href="{% url 'certificates' %}" class="btn-outline"><i class="ph ph-arrow-left"></i> Back</a>
+        <a href="{% url 'download_certificate' certificate.id %}" class="btn-primary"><i class="ph ph-download"></i> Download PDF</a>
+        {% if is_admin %}
+        <a href="{% url 'admin:erp_app_certificate_change' certificate.id %}" class="btn-outline"><i class="ph ph-pencil"></i> Edit</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <section class="auralith-certificate">
+        <div class="certificate-panel">
+            <img class="watermark" src="{% static 'erp_app/images/AURALITH_logo.png' %}" alt="">
+
+            <div class="certificate-content">
+                <div class="brand-row">
+                    <img src="{% static 'erp_app/images/AURALITH_logo.png' %}" alt="Auralith Bit">
+                    <div>
+                        <div class="brand-name">Auralith Bit</div>
+                        <div class="tagline">Design &bull; Develop &bull; Deliver</div>
+                    </div>
+                </div>
+
+                <div class="title-row">
+                    <span class="title-line"></span>
+                    <span class="title-dot">&bull;&bull;</span>
+                    <h1 class="cert-title">{{ certificate.certificate_heading }}</h1>
+                    <span class="title-dot">&bull;&bull;</span>
+                    <span class="title-line"></span>
+                </div>
+                <div class="under-title"><span>&diams;&diams;</span></div>
+
+                <p class="intro">This is to proudly certify that</p>
+                <div class="recipient-line">
+                    <div class="student-name">{{ certificate.student.name }}</div>
+                </div>
+
+                <p class="statement">{{ certificate.completion_sentence }}</p>
+                <div class="middle-ornament"><span></span></div>
+                <p class="body-copy">{{ certificate.certificate_body }}</p>
+                <div class="middle-ornament"><span></span></div>
+                <p class="appreciation">We appreciate their commitment to enhancing their skills and wish them continued success in their future endeavors.</p>
+
+                <div class="meta">
+                    <p>Starting Date&nbsp; :&nbsp; {% if certificate.program_start_date %}{{ certificate.program_start_date }}{% else %}{{ certificate.issue_date|date:"Y/m/d" }}{% endif %}</p>
+                    {% if certificate.location %}
+                    <p>Location: {{ certificate.location }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="signatures">
+                <div class="signature">
+                    <div class="signature-script">{{ certificate.dynamic_signature }}</div>
+                    <div class="signature-line"></div>
+                    <div class="signature-name">{{ certificate.authorized_signer_name }}</div>
+                    <div class="signature-title">{{ certificate.authorized_signer_title }}</div>
+                </div>
+                <div class="signature">
+                    <div class="signature-script">{{ certificate.ceo_founder_signature }}</div>
+                    <div class="signature-line"></div>
+                    <div class="signature-name">{{ certificate.ceo_founder_name }}</div>
+                    <div class="signature-title">{{ certificate.ceo_founder_title }}</div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>

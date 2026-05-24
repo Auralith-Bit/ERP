@@ -1,0 +1,58 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Integration{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
+    <div class="header-info">
+        <h1>Integrations</h1>
+        <p>Connect third-party services and APIs</p>
+    </div>
+</header>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;">
+    <div class="data-card" style="text-align:center;padding:30px;">
+        <i class="ph ph-google-logo" style="font-size:40px;color:#EA4335;"></i>
+        <h3 style="margin:15px 0 5px;">Google Workspace</h3>
+        <p style="font-size:13px;color:#64748B;margin-bottom:15px;">Sync emails, calendars, and contacts</p>
+        <button type="button" class="btn-filled integration-action" data-service="Google Workspace">Connect</button>
+    </div>
+    <div class="data-card" style="text-align:center;padding:30px;">
+        <i class="ph ph-slack-logo" style="font-size:40px;color:#4A154B;"></i>
+        <h3 style="margin:15px 0 5px;">Slack</h3>
+        <p style="font-size:13px;color:#64748B;margin-bottom:15px;">Real-time notifications and alerts</p>
+        <button type="button" class="btn-filled integration-action" data-service="Slack">Connect</button>
+    </div>
+    <div class="data-card" style="text-align:center;padding:30px;">
+        <i class="ph ph-paypal-logo" style="font-size:40px;color:#003087;"></i>
+        <h3 style="margin:15px 0 5px;">Payment Gateway</h3>
+        <p style="font-size:13px;color:#64748B;margin-bottom:15px;">Process fees and transactions</p>
+        <button type="button" class="btn-filled integration-action" data-service="Payment Gateway">Configure</button>
+    </div>
+    <div class="data-card" style="text-align:center;padding:30px;">
+        <i class="ph ph-envelope" style="font-size:40px;color:#1A4B8D;"></i>
+        <h3 style="margin:15px 0 5px;">Mailchimp</h3>
+        <p style="font-size:13px;color:#64748B;margin-bottom:15px;">Email marketing automation</p>
+        <button type="button" class="btn-filled integration-action" data-service="Mailchimp">Connect</button>
+    </div>
+    <div class="data-card" style="text-align:center;padding:30px;">
+        <i class="ph ph-cloud" style="font-size:40px;color:#F9AB00;"></i>
+        <h3 style="margin:15px 0 5px;">Cloud Storage</h3>
+        <p style="font-size:13px;color:#64748B;margin-bottom:15px;">Backup and file management</p>
+        <button type="button" class="btn-filled integration-action" data-service="Cloud Storage">Configure</button>
+    </div>
+    <div class="data-card" style="text-align:center;padding:30px;">
+        <i class="ph ph-graph" style="font-size:40px;color:#10B981;"></i>
+        <h3 style="margin:15px 0 5px;">Analytics</h3>
+        <p style="font-size:13px;color:#64748B;margin-bottom:15px;">Track performance metrics</p>
+        <button type="button" class="btn-filled integration-action" data-service="Analytics">Enable</button>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.integration-action').forEach(button => {
+        button.addEventListener('click', function() {
+            const service = this.dataset.service;
+            alert(`${service} integration is coming soon. This will let you connect and configure ${service} from the ERP.`);
+        });
+    });
+</script>
+{% endblock %}

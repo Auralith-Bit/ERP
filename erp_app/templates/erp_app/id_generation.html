@@ -1,0 +1,157 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}ID Cards{% endblock %}
+{% block content %}
+<style>
+    .id-card-item { display:flex; align-items:center; gap:14px; background:var(--surface-alt); border:1px solid var(--panel-border); padding:12px 14px; border-radius:12px; cursor:pointer; transition:all .3s ease; }
+    .id-card-item:hover { border-color:#4F46E5; box-shadow:0 2px 8px rgba(79,70,229,.1); background:var(--surface); }
+    .id-card-thumbnail { width:68px; height:44px; object-fit:cover; border-radius:8px; border:1px solid #E2E8F0; }
+    .id-card-content { flex:1; min-width:0; }
+    .id-card-actions { display:flex; gap:8px; align-items:center; }
+    .btn-delete { padding:6px 12px; background:#EF4444; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px; }
+    .btn-delete:hover { background:#DC2626; }
+    .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,.7); }
+    .modal.show { display:flex; align-items:center; justify-content:center; }
+    .modal-content { background:#fff; border-radius:12px; padding:20px; max-width:90%; max-height:90vh; overflow:auto; }
+    .modal-image { max-width:100%; max-height:80vh; border-radius:8px; }
+</style>
+
+<header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
+    <div class="header-info">
+        <h1>ID Cards</h1>
+        <p>ID cards are already created by the company. Use this page to upload or preview the ID card image only.</p>
+    </div>
+</header>
+
+<div style="display:grid;grid-template-columns:{% if is_admin %}1fr 1fr{% else %}1fr{% endif %};gap:20px;">
+    {% if is_admin %}
+    <div class="data-card" style="padding:25px;">
+        <h3 style="margin-bottom:15px;">Upload Student ID Card</h3>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="card_type" value="student">
+            <div class="form-group" style="margin-bottom:15px;">
+                <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Student</label>
+                <select name="owner_id" style="width:100%;padding:10px;border:1px solid #E2E8F0;border-radius:8px;" required>
+                    <option value="">Select a student...</option>
+                    {% for student in students %}
+                    <option value="{{ student.id }}">{{ student.name }} ({{ student.email }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom:20px;">
+                <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">ID Card Image</label>
+                <input name="id_card_file" type="file" accept="image/*" style="width:100%;padding:10px;border:1px solid #E2E8F0;border-radius:8px;" required>
+            </div>
+            <button class="btn-filled" type="submit"><i class="ph ph-upload"></i> Upload Student ID</button>
+        </form>
+    </div>
+
+    <div class="data-card" style="padding:25px;">
+        <h3 style="margin-bottom:15px;">Upload Employee ID Card</h3>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="card_type" value="employee">
+            <div class="form-group" style="margin-bottom:15px;">
+                <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Employee</label>
+                <select name="owner_id" style="width:100%;padding:10px;border:1px solid #E2E8F0;border-radius:8px;" required>
+                    <option value="">Select an employee...</option>
+                    {% for employee in employees %}
+                    <option value="{{ employee.id }}">{{ employee.name }} ({{ employee.email }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom:20px;">
+                <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">ID Card Image</label>
+                <input name="id_card_file" type="file" accept="image/*" style="width:100%;padding:10px;border:1px solid #E2E8F0;border-radius:8px;" required>
+            </div>
+            <button class="btn-filled" type="submit"><i class="ph ph-upload"></i> Upload Employee ID</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="data-card" style="padding:25px;">
+        <h3 style="margin-bottom:15px;">Student ID Cards</h3>
+        {% if student_cards %}
+        <div style="display:grid;gap:14px;">
+            {% for card in student_cards %}
+            <div class="id-card-item" onclick="openImageModal('{{ card.file.url }}', '{{ card.owner_name }}')">
+                <img src="{{ card.file.url }}" alt="{{ card.owner_name }}" class="id-card-thumbnail" />
+                <div class="id-card-content">
+                    <div style="font-weight:700;color:var(--text-dark);">{{ card.owner_name }}</div>
+                    <small style="color:var(--text-muted);">Uploaded {{ card.uploaded_at|date:'M d, Y H:i' }}</small>
+                </div>
+                {% if is_admin %}
+                <div class="id-card-actions">
+                    <button type="button" class="btn-delete" onclick="deleteIDCard(event, {{ card.id }})">
+                        <i class="ph ph-trash"></i> Delete
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--text-muted);font-size:14px;">No student ID cards have been uploaded yet.</p>
+        {% endif %}
+    </div>
+
+    <div class="data-card" style="padding:25px;">
+        <h3 style="margin-bottom:15px;">Employee ID Cards</h3>
+        {% if employee_cards %}
+        <div style="display:grid;gap:14px;">
+            {% for card in employee_cards %}
+            <div class="id-card-item" onclick="openImageModal('{{ card.file.url }}', '{{ card.owner_name }}')">
+                <img src="{{ card.file.url }}" alt="{{ card.owner_name }}" class="id-card-thumbnail" />
+                <div class="id-card-content">
+                    <div style="font-weight:700;color:var(--text-dark);">{{ card.owner_name }}</div>
+                    <small style="color:var(--text-muted);">Uploaded {{ card.uploaded_at|date:'M d, Y H:i' }}</small>
+                </div>
+                {% if is_admin %}
+                <div class="id-card-actions">
+                    <button type="button" class="btn-delete" onclick="deleteIDCard(event, {{ card.id }})">
+                        <i class="ph ph-trash"></i> Delete
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--text-muted);font-size:14px;">No employee ID cards have been uploaded yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Image Viewer Modal -->
+<div id="imageModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeImageModal()">&times;</span>
+        <img id="modalImage" src="" alt="" class="modal-image">
+        <div style="margin-top: 15px; text-align: center; color: var(--text-muted); font-size: 14px;">
+            <p id="modalImageName"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openImageModal(imageSrc, imageName) {
+        const modal = document.getElementById('imageModal');
+        const modalImage = document.getElementById('modalImage');
+        const modalImageName = document.getElementById('modalImageName');
+        modalImage.src = imageSrc;
+        modalImageName.textContent = imageName;
+        modal.classList.add('show');
+    }
+    function closeImageModal() { document.getElementById('imageModal').classList.remove('show'); }
+    document.getElementById('imageModal').addEventListener('click', function(e){ if (e.target === this) closeImageModal(); });
+
+    function deleteIDCard(event, cardId) {
+        event.stopPropagation();
+        if (!confirm('Are you sure you want to delete this ID card?')) return;
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : (document.cookie.match(/csrftoken=([^;]+)/)||[])[1];
+        fetch(`/api/delete-id-card/${cardId}/`, { method:'DELETE', headers: {'X-CSRFToken': csrftoken, 'Content-Type':'application/json'} })
+        .then(r=>r.json()).then(data=>{ if(data.status==='success'){ alert(data.message); location.reload(); } else alert('Error: '+data.message); }).catch(e=>{console.error(e); alert('An error occurred while deleting the ID card.');});
+    }
+</script>
+
+{% endblock %}

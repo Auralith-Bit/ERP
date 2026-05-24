@@ -1,0 +1,68 @@
+{% extends 'erp_app/base.html' %}
+{% load erp_extras %}
+{% block title %}{{ model_name }} Browser{% endblock %}
+{% block content %}
+<div style="margin-bottom:20px;">
+    <a href="{% url 'workbench' %}" style="color:var(--auralith-blue);text-decoration:none;font-size:14px;">&larr; Back to Workbench</a>
+</div>
+
+<header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
+    <div class="header-info">
+        <h1>{{ model_verbose_plural|title }}</h1>
+        <p>{{ model_app_label }}.{{ model_class_name }} &mdash; {{ objects|length }} record(s)</p>
+    </div>
+</header>
+
+<div class="data-card" style="overflow-x:auto;">
+    <table>
+        <thead>
+            <tr>
+                {% for field in fields %}
+                <th>{{ field.verbose_name|title }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for obj in objects %}
+            <tr>
+                {% for field in fields %}
+                <td>
+                    {% if field.name in choice_fields %}
+                        {% with display_method='get_'|add:field.name|add:'_display' %}
+                        <span class="tag {% if obj|get_attr:field.name == 'live' or obj|get_attr:field.name == 'active' or obj|get_attr:field.name == 'completed' %}live{% endif %}">{{ obj|get_attr:display_method }}</span>
+                        {% endwith %}
+                    {% elif field.name == 'mentor' and obj|get_attr:'mentor' %}
+                        {{ obj.mentor.name }}
+                    {% elif field.name == 'department' and obj|get_attr:'department' %}
+                        {{ obj.department.name }}
+                    {% elif field.name == 'progress_percentage' %}
+                        {% with pct=obj|get_attr:'progress_percentage' %}
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="progress-bar" style="flex:1;max-width:100px;"><div style="width:{{ pct }}%"></div></div>
+                            <span>{{ pct }}%</span>
+                        </div>
+                        {% endwith %}
+                    {% elif field.name == 'completion_percent' %}
+                        {% with pct=obj|get_attr:'completion_percent' %}
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="progress-bar" style="flex:1;max-width:100px;"><div style="width:{{ pct }}%"></div></div>
+                            <span>{{ pct }}%</span>
+                        </div>
+                        {% endwith %}
+                    {% elif field.get_internal_type == 'BooleanField' %}
+                        {% if obj|get_attr:field.name %}Yes{% else %}No{% endif %}
+                    {% elif field.get_internal_type == 'DateField' or field.get_internal_type == 'DateTimeField' %}
+                        {{ obj|get_attr:field.name|default:"—" }}
+                    {% else %}
+                        {{ obj|get_attr:field.name|default:"—" }}
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% empty %}
+            <tr><td colspan="{{ fields|length }}" style="text-align:center;color:#94a3b8;">No records found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

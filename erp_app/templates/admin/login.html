@@ -1,0 +1,48 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Log in" %}{% endblock %}
+
+{% block content %}
+<div id="content-main" class="login">
+    <h1>{% trans "Log in" %}</h1>
+    {% if form.errors %}
+        <p class="errornote">{% trans "Please correct the error below." %}</p>
+    {% endif %}
+    <form action="" method="post" id="login-form">{% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="form-row">
+            {{ form.username.errors }}
+            <label for="{{ form.username.id_for_label }}">{% trans "Username:" %}</label>
+            {{ form.username }}
+        </div>
+        <div class="form-row" style="position:relative;">
+            {{ form.password.errors }}
+            <label for="{{ form.password.id_for_label }}">{% trans "Password:" %}</label>
+            {{ form.password }}
+            <button id="adminTogglePassword" type="button" style="position:absolute;right:12px;top:38px;border:none;background:none;color:#6B7280;cursor:pointer;font-size:14px;">Show</button>
+        </div>
+        {% if next %}<input type="hidden" name="next" value="{{ next }}" />{% endif %}
+        <div class="submit-row">
+            <input type="submit" value="{% trans "Log in" %}" />
+        </div>
+    </form>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const passwordInput = document.getElementById('id_password');
+        const togglePassword = document.getElementById('adminTogglePassword');
+        if (passwordInput && togglePassword) {
+            togglePassword.addEventListener('click', function() {
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    this.textContent = 'Hide';
+                } else {
+                    passwordInput.type = 'password';
+                    this.textContent = 'Show';
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

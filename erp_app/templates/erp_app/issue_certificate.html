@@ -1,0 +1,111 @@
+{% extends 'erp_app/base.html' %}
+{% load static %}
+{% block title %}Issue Certificate{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
+    <div class="header-info">
+        <h1>Issue Certificate</h1>
+        <p>Manually issue a certificate to a student</p>
+    </div>
+    <a href="{% url 'certificates' %}" class="btn-outline"><i class="ph ph-arrow-left"></i> Back</a>
+</header>
+
+<div class="data-card" style="max-width:760px;">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="student">Student *</label>
+            <select name="student" id="student" required>
+                <option value="">Select Student</option>
+                {% for s in students %}
+                <option value="{{ s.id }}">{{ s.name }} ({{ s.email }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="certificate_type">Certificate Type</label>
+            <select name="certificate_type" id="certificate_type" onchange="toggleCertificateFields()">
+                <option value="internship">Internship</option>
+                <option value="course">Course</option>
+                <option value="workshop">Workshop</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="course_group" style="display:none;">
+            <label for="course">Linked Course</label>
+            <select name="course" id="course">
+                <option value="">Select Course</option>
+                {% for c in courses %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="program_title" id="program_title_label">Program Title</label>
+            <input type="text" name="program_title" id="program_title" placeholder="e.g. 7 Days Frontend Development Workshop">
+            <small style="color:#94A3B8;">Leave blank to use the selected course name for course/workshop certificates.</small>
+        </div>
+
+        <div class="form-group" id="internship_details_group">
+            <label for="internship_details">Internship Details <small style="color:#94A3B8;">(project, duration, skills)</small></label>
+            <textarea name="internship_details" id="internship_details" rows="4" style="width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:14px;outline:none;resize:vertical;font-family:inherit;" placeholder="e.g. Web Development Intern, Jan 2026 to Mar 2026. Worked on React and Django projects."></textarea>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
+            <div class="form-group">
+                <label for="program_start_date">Starting Date</label>
+                <input type="text" name="program_start_date" id="program_start_date" placeholder="e.g. 2082/11/25">
+            </div>
+
+            <div class="form-group">
+                <label for="location">Location</label>
+                <input type="text" name="location" id="location" value="Auralith Bit">
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
+            <div class="form-group">
+                <label for="authorized_signer_name">Dynamic Signer Name</label>
+                <input type="text" name="authorized_signer_name" id="authorized_signer_name" value="Supriya Dwivedi">
+            </div>
+
+            <div class="form-group">
+                <label for="authorized_signer_title">Dynamic Signer Title</label>
+                <input type="text" name="authorized_signer_title" id="authorized_signer_title" value="Full Stack Developer">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="authorized_signature_text">Dynamic Digital Signature Text</label>
+            <input type="text" name="authorized_signature_text" id="authorized_signature_text" placeholder="Leave blank to use signer name">
+            <small style="color:#94A3B8;">CEO and Founder signature is fixed as Aakriti Bista.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="certificate_file">Upload Certificate (PDF, optional)</label>
+            <input type="file" name="certificate_file" id="certificate_file" accept=".pdf">
+        </div>
+
+        <button type="submit" class="btn-primary"><i class="ph ph-certificate"></i> Issue Certificate</button>
+    </form>
+</div>
+
+<script>
+function toggleCertificateFields() {
+    const type = document.getElementById('certificate_type').value;
+    document.getElementById('course_group').style.display = type === 'course' || type === 'workshop' ? 'block' : 'none';
+    document.getElementById('internship_details_group').style.display = type === 'internship' ? 'block' : 'none';
+
+    const labels = {
+        course: ['Course Title', 'e.g. Advanced Python Course'],
+        workshop: ['Workshop Title', 'e.g. 7 Days Frontend Development Workshop'],
+        internship: ['Internship Title', 'e.g. Full Stack Development Internship']
+    };
+    document.getElementById('program_title_label').textContent = labels[type][0];
+    document.getElementById('program_title').placeholder = labels[type][1];
+}
+toggleCertificateFields();
+</script>
+{% endblock %}

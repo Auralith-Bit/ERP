@@ -1,0 +1,47 @@
+{% extends 'erp_app/base.html' %}
+
+{% block title %}Search Results{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Search Results</h1>
+    {% if query %}
+        <p>Showing results for <strong>"{{ query }}"</strong>.</p>
+    {% else %}
+        <p>Enter a search term in the header to find students, mentors, projects, employees, departments, or courses.</p>
+    {% endif %}
+</div>
+
+{% if query %}
+    {% if total_matches > 0 %}
+        <div class="search-summary">
+            <p>{{ total_matches }} result{% if total_matches != 1 %}s{% endif %} found.</p>
+        </div>
+        <div class="search-results">
+            {% for group in results %}
+                <section class="search-group">
+                    <h2>{{ group.title }}</h2>
+                    {% if group.items %}
+                        <ul>
+                            {% for item in group.items %}
+                                <li>
+                                    <strong>{{ item }}</strong>
+                                    {% if item.email %}<span> • {{ item.email }}</span>{% elif item.client %}<span> • {{ item.client }}</span>{% elif item.category %}<span> • {{ item.category }}</span>{% elif item.role %}<span> • {{ item.role }}</span>{% elif item.head %}<span> • {{ item.head }}</span>{% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="empty-state">
+                            <p>No matching {{ group.title|lower }} found.</p>
+                        </div>
+                    {% endif %}
+                </section>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>No results match <strong>"{{ query }}"</strong>. Try a different keyword.</p>
+        </div>
+    {% endif %}
+{% endif %}
+{% endblock %}

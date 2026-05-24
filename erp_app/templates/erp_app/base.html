@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auralith ERP | {% block title %}Dashboard{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'erp_app/css/style.css' %}">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="brand">
+                <img src="{% static 'erp_app/images/AURALITH_logo.png' %}" alt="Auralith Bit Logo" class="sidebar-logo">
+                <h2>AURALITH BIT</h2>
+            </div>
+            <nav>
+                <p class="nav-label">Main Menu</p>
+                <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active"{% endif %}><i class="ph ph-house"></i> Dashboard</a>
+                {% if is_any_staff or is_student or is_intern %}
+                <a href="{% url 'courses' %}" {% if request.resolver_match.url_name == 'courses' %}class="active"{% endif %}><i class="ph ph-book-open"></i> Courses</a>
+                {% endif %}
+                {% if is_teaching_staff or is_super_admin or is_intern or is_student %}
+                <a href="{% url 'mentors' %}" {% if request.resolver_match.url_name == 'mentors' %}class="active"{% endif %}><i class="ph ph-chalkboard-teacher"></i> Mentors</a>
+                {% endif %}
+                {% if is_any_staff or is_intern %}
+                <div class="dropdown">
+                    <button class="dropdown-btn">
+                        <span><i class="ph ph-users"></i> Employee</span>
+                        <i class="ph ph-caret-down"></i>
+                    </button>
+                    <div class="dropdown-content">
+                        <a href="{% url 'employees' %}?type=intern"><i class="ph ph-student"></i> Interns</a>
+                        <a href="{% url 'employees' %}?type=staff"><i class="ph ph-briefcase"></i> Staff</a>
+                        <a href="{% url 'employees' %}?type=mentor"><i class="ph ph-chalkboard-teacher"></i> Mentors</a>
+                        <a href="{% url 'employees' %}?type=admin"><i class="ph ph-shield"></i> Admin</a>
+                    </div>
+                </div>
+                {% endif %}
+                {% if is_normal_staff or is_super_admin or is_teaching_staff %}
+                <a href="{% url 'departments' %}" {% if request.resolver_match.url_name == 'departments' %}class="active"{% endif %}><i class="ph ph-buildings"></i> Departments</a>
+                {% endif %}
+                {% if is_any_staff %}
+                <a href="{% url 'integration' %}" {% if request.resolver_match.url_name == 'integration' %}class="active"{% endif %}><i class="ph ph-plugs-connected"></i> Integration</a>
+                {% endif %}
+                <p class="nav-label">Management</p>
+                {% if is_normal_staff or is_super_admin or is_teaching_staff %}
+                <a href="{% url 'id_generation' %}" {% if request.resolver_match.url_name == 'id_generation' %}class="active"{% endif %}><i class="ph ph-identification-card"></i> ID Cards</a>
+                {% endif %}
+                {% if is_any_staff or is_student or is_intern %}
+                <a href="{% url 'certificates' %}" {% if request.resolver_match.url_name == 'certificates' or request.resolver_match.url_name == 'issue_certificate' or request.resolver_match.url_name == 'preview_certificate' %}class="active"{% endif %}><i class="ph ph-certificate"></i> Certificates</a>
+                {% endif %}
+                {% if is_normal_staff or is_super_admin or is_teaching_staff %}
+                <a href="{% url 'budget_fees' %}" {% if request.resolver_match.url_name == 'budget_fees' %}class="active"{% endif %}><i class="ph ph-money"></i> Budget & Fees</a>
+                {% endif %}
+                {% if is_super_admin %}
+                <p class="nav-label">System</p>
+                <a href="{% url 'workbench' %}" {% if request.resolver_match.url_name == 'workbench' %}class="active"{% endif %}><i class="ph ph-database"></i> DB Workbench</a>
+                {% endif %}
+            </nav>
+        </aside>
+        <main class="workspace">
+            <header class="top-nav">
+                <form class="search-box" method="get" action="{% url 'search' %}">
+                    <button type="submit" style="background:none;border:none;color:inherit;cursor:pointer;padding:0;margin:0;display:flex;align-items:center;">
+                        <i class="ph ph-magnifying-glass"></i>
+                    </button>
+                    <input type="text" name="q" placeholder="Search students, mentors, or projects..." value="{{ request.GET.q|default_if_none:'' }}">
+                </form>
+                <div class="user-profile" style="position:relative;display:flex;align-items:center;gap:10px;">
+                    <button id="notificationToggle" type="button" style="background:none;border:none;color:inherit;cursor:pointer;position:relative;padding:0;font-size:18px;">
+                        <i class="ph ph-bell"></i>
+                        <span id="notificationCount" style="position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:#EF4444;color:white;font-size:10px;display:flex;align-items:center;justify-content:center;">0</span>
+                    </button>
+                    <button id="themeToggle" type="button" style="background:none;border:none;color:inherit;cursor:pointer;padding:0;font-size:18px;margin-right:8px;">
+                        <i class="ph ph-moon-stars"></i>
+                    </button>
+                    <div id="notificationMenu" style="display:none;position:absolute;right:0;top:42px;width:320px;background:var(--surface);border:1px solid var(--panel-border);box-shadow:0 10px 30px rgba(15,23,42,0.12);border-radius:12px;z-index:50;">
+                        <div style="padding:14px 16px;border-bottom:1px solid var(--panel-border);font-weight:700;color:var(--text-dark);background:var(--surface);">Notifications</div>
+                        <div id="notificationsList" style="max-height:260px;overflow:auto;"></div>
+                    </div>
+                    <div class="avatar">{{ user_initials }}</div>
+                    <span>{{ request.user.get_full_name|default:request.user.username }}</span>
+                    <a href="{% url 'logout' %}" class="logout-link" title="Logout"><i class="ph ph-sign-out"></i></a>
+                </div>
+            </header>
+            <div class="content">
+                {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    <script>
+        const notificationEndpoint = "{% url 'notifications_feed' %}";
+        const seenNotificationsKey = 'auralithSeenNotifications';
+        let serverNotifications = [];
+
+        function getSeenNotificationIds() {
+            try {
+                return JSON.parse(localStorage.getItem(seenNotificationsKey) || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function setSeenNotificationIds(ids) {
+            localStorage.setItem(seenNotificationsKey, JSON.stringify(ids));
+        }
+
+        function renderNotifications() {
+            const list = document.getElementById('notificationsList');
+            const countBadge = document.getElementById('notificationCount');
+            const seenIds = getSeenNotificationIds();
+            const unreadCount = serverNotifications.filter(n => !seenIds.includes(n.id)).length;
+
+            countBadge.textContent = unreadCount;
+            countBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
+            list.innerHTML = '';
+
+            if (!serverNotifications.length) {
+                list.innerHTML = '<div style="padding:16px;color:var(--text-muted);">No notifications.</div>';
+                return;
+            }
+
+            serverNotifications.forEach(notification => {
+                const item = document.createElement('div');
+                item.style.padding = '14px 16px';
+                item.style.borderBottom = '1px solid var(--panel-border)';
+                item.style.background = seenIds.includes(notification.id) ? 'var(--surface)' : 'rgba(226,232,240,0.8)';
+                item.style.cursor = 'pointer';
+                item.innerHTML = `
+                    <p style="margin:0 0 4px 0;font-size:14px;color:var(--text-dark);font-weight:600;">${notification.title}</p>
+                    <small style="color:var(--text-muted);display:block;margin-bottom:8px;">${notification.message}</small>
+                    <small style="color:#94A3B8;">From: ${notification.sender}</small>
+                `;
+                item.addEventListener('click', function() {
+                    if (!seenIds.includes(notification.id)) {
+                        seenIds.push(notification.id);
+                        setSeenNotificationIds(seenIds);
+                        renderNotifications();
+                    }
+                });
+                list.appendChild(item);
+            });
+        }
+
+        async function refreshNotifications() {
+            try {
+                const response = await fetch(notificationEndpoint);
+                if (response.ok) {
+                    serverNotifications = await response.json();
+                    renderNotifications();
+                }
+            } catch (error) {
+                console.warn('Unable to fetch notifications', error);
+            }
+        }
+
+        function applyTheme(mode) {
+            const bodyClass = document.body.classList;
+            const themeToggle = document.getElementById('themeToggle');
+            if (mode === 'dark') {
+                bodyClass.add('dark-theme');
+                if (themeToggle) themeToggle.innerHTML = '<i class="ph ph-sun"></i>';
+            } else {
+                bodyClass.remove('dark-theme');
+                if (themeToggle) themeToggle.innerHTML = '<i class="ph ph-moon-stars"></i>';
+            }
+            localStorage.setItem('auralithThemeMode', mode);
+        }
+
+        const storedTheme = localStorage.getItem('auralithThemeMode') || 'light';
+        applyTheme(storedTheme);
+
+        const themeButton = document.getElementById('themeToggle');
+        if (themeButton) {
+            themeButton.addEventListener('click', function() {
+                const nextTheme = document.body.classList.contains('dark-theme') ? 'light' : 'dark';
+                applyTheme(nextTheme);
+            });
+        }
+
+        const notificationToggle = document.getElementById('notificationToggle');
+        const notificationMenu = document.getElementById('notificationMenu');
+        if (notificationToggle) {
+            notificationToggle.addEventListener('click', function(event) {
+                event.stopPropagation();
+                if (notificationMenu.style.display === 'block') {
+                    notificationMenu.style.display = 'none';
+                    return;
+                }
+                notificationMenu.style.display = 'block';
+                const allIds = serverNotifications.map(n => n.id);
+                setSeenNotificationIds(allIds);
+                renderNotifications();
+            });
+            window.addEventListener('click', function() {
+                if (notificationMenu) {
+                    notificationMenu.style.display = 'none';
+                }
+            });
+            notificationMenu.addEventListener('click', function(event) {
+                event.stopPropagation();
+            });
+        }
+
+        refreshNotifications();
+        setInterval(refreshNotifications, 15000);
+    </script>
+</body>
+</html>

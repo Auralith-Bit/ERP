@@ -1,0 +1,25 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Course Syllabus{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
+    <div class="header-info">
+        <h1>{{ course.name }} — Syllabus</h1>
+        <p>Course category: {{ course.get_category_display }}</p>
+    </div>
+</header>
+
+<div class="data-card">
+    {% if course.syllabus %}
+        <div style="display:flex;flex-direction:column;align-items:flex-start;gap:12px;">
+            <p style="margin:0;">Download or preview the syllabus below:</p>
+            <a href="{{ course.syllabus.url }}" target="_blank" class="btn-outline" style="display:inline-flex;width:auto;max-width:none;align-self:flex-start;">Open Syllabus</a>
+        </div>
+    {% else %}
+        <p style="color:#64748B;">No syllabus file uploaded for this course.</p>
+        {% if course.description %}
+            <div style="margin-top:12px;">{{ course.description|linebreaks }}</div>
+        {% endif %}
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Departments{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
+    <div class="header-info">
+        <h1>Departments</h1>
+        <p>{{ departments|length }} department(s)</p>
+    </div>
+    {% if is_admin %}
+    <a href="{% url 'admin:erp_app_department_add' %}" class="btn-primary"><i class="ph ph-plus"></i> Add Department</a>
+    {% endif %}
+</header>
+
+<div class="workbench-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:20px;">
+    {% for dept in departments %}
+    <div class="data-card" style="padding:0;overflow:hidden;">
+        <div style="background:var(--auralith-blue);color:white;padding:20px;display:flex;justify-content:space-between;align-items:center;">
+            <h3 style="margin:0;color:white;font-size:16px;">{{ dept.name }}</h3>
+            <span style="background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:20px;font-size:13px;">{{ dept.employee_count }} members</span>
+        </div>
+        <div style="padding:20px;">
+            <p style="font-size:13px;color:#64748B;margin-bottom:12px;"><strong>Members:</strong></p>
+            <ul style="margin:0;padding-left:18px;color:#475569;font-size:13px;line-height:1.6;">
+                {% for member in dept.employee_set.all %}
+                <li>{{ member.name }}{% if member.role %} — {{ member.role }}{% endif %}</li>
+                {% empty %}
+                <li style="color:#94a3b8;">No members assigned.</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div style="padding:15px 20px;border-top:1px solid #F1F5F9;">
+            <a href="{% url 'admin:erp_app_department_change' dept.id %}" class="btn-outline" style="text-decoration:none;font-size:12px;padding:8px 16px;display:inline-block;">Manage</a>
+        </div>
+    </div>
+    {% empty %}
+    <p style="color:#94a3b8;">No departments yet. <a href="{% url 'admin:erp_app_department_add' %}">Create one</a>.</p>
+    {% endfor %}
+</div>
+{% endblock %}

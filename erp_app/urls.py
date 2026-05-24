@@ -1,0 +1,39 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+    path('dashboard/', views.dashboard, name='dashboard'),
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+    path('register/', views.register_view, name='register'),
+    path('register/staff/', views.staff_register_view, name='staff_register'),
+    path('password-reset/', views.password_reset, name='password_reset'),
+    path('courses/', views.courses, name='courses'),
+    path('courses/<int:course_id>/syllabus/', views.course_syllabus, name='course_syllabus'),
+    path('mentors/', views.mentors, name='mentors'),
+    path('employees/', views.employees, name='employees'),
+    path('departments/', views.departments, name='departments'),
+    path('integration/', views.integration, name='integration'),
+    path('id-generation/', views.id_generation, name='id_generation'),
+    path('budget-fees/', views.budget_fees, name='budget_fees'),
+    path('workbench/', views.workbench, name='workbench'),
+    path('search/', views.search, name='search'),
+    path('workbench/<str:app_label>/<str:model_name>/', views.workbench_table, name='workbench_table'),
+    # API endpoints for ID generation
+    path('api/get-students/', views.get_students, name='get_students'),
+    path('api/get-employees/', views.get_employees, name='get_employees'),
+    path('api/get-courses/', views.get_courses, name='get_courses'),
+    path('api/get-departments/', views.get_departments, name='get_departments'),
+    path('api/notifications/', views.notifications_feed, name='notifications_feed'),
+    path('api/generate-student-id/', views.generate_student_id, name='generate_student_id'),
+    path('api/generate-employee-id/', views.generate_employee_id, name='generate_employee_id'),
+    path('api/verify-id-card/', views.verify_id_card, name='verify_id_card'),
+    path('api/delete-id-card/<int:card_id>/', views.delete_id_card, name='delete_id_card'),
+    # Certificate routes
+    path('certificates/', views.certificates, name='certificates'),
+    path('certificates/issue/', views.issue_certificate, name='issue_certificate'),
+    path('promote-intern/<int:student_id>/', views.promote_to_intern, name='promote_to_intern'),
+    path('certificates/<int:cert_id>/', views.preview_certificate, name='preview_certificate'),
+    path('certificates/<int:cert_id>/download/', views.download_certificate, name='download_certificate'),
+]

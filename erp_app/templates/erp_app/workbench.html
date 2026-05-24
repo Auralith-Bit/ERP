@@ -1,0 +1,42 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Database Workbench{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
+    <div class="header-info">
+        <h1>Database Workbench</h1>
+        <p>Browse and manage all database tables</p>
+    </div>
+</header>
+
+{% if error %}
+<div style="background:#FEF2F2;color:#991B1B;padding:15px;border-radius:8px;margin-bottom:20px;">{{ error }}</div>
+{% endif %}
+
+<div class="workbench-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:20px;">
+    {% for model in model_data %}
+    <div class="data-card" style="padding:0;overflow:hidden;">
+        <div style="background:var(--auralith-blue);color:white;padding:15px 20px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <h3 style="margin:0;font-size:16px;color:white;">{{ model.name }}</h3>
+                <small style="opacity:0.8;">{{ model.app_label }}.{{ model.model_name }}</small>
+            </div>
+            <span style="background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:20px;font-size:13px;">{{ model.count }} rows</span>
+        </div>
+        <div style="padding:15px 20px;">
+            <p style="font-size:12px;color:#64748B;margin-bottom:8px;">Fields:</p>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;">
+                {% for field in model.fields %}
+                <span style="background:#F1F5F9;padding:3px 8px;border-radius:4px;font-size:11px;color:#475569;">{{ field }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        <div style="padding:12px 20px;border-top:1px solid #F1F5F9;display:flex;gap:8px;">
+            <a href="{% url 'workbench_table' app_label=model.app_label model_name=model.model_name %}" class="btn-filled" style="text-decoration:none;font-size:12px;padding:8px 16px;display:inline-block;">Browse Data</a>
+            {% if model.admin_url %}
+            <a href="{{ model.admin_url }}" class="btn-outline" style="text-decoration:none;font-size:12px;padding:8px 16px;display:inline-block;text-align:center;">Admin</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

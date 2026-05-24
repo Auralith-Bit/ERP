@@ -1,0 +1,79 @@
+{% extends 'erp_app/base.html' %}
+{% load static %}
+{% block title %}Certificates{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
+    <div class="header-info">
+        <h1>Certificates</h1>
+        <p>View and manage all certificates</p>
+    </div>
+    {% if is_admin %}
+    <a href="{% url 'issue_certificate' %}" class="btn-primary"><i class="ph ph-plus"></i> Issue Certificate</a>
+    {% endif %}
+</header>
+
+<div class="table-controls" style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+    <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;width:100%;">
+        <div class="search-box" style="width:280px;">
+            <i class="ph ph-magnifying-glass"></i>
+            <input type="text" name="q" placeholder="Search by number, student, or course..." value="{{ search_query }}">
+        </div>
+        <select name="type" onchange="this.form.submit()" style="padding:8px 12px;border:1px solid var(--panel-border);border-radius:8px;background:var(--surface);color:var(--text-dark);font-size:13px;">
+            <option value="">All Types</option>
+            <option value="course" {% if current_type == 'course' %}selected{% endif %}>Course</option>
+            <option value="internship" {% if current_type == 'internship' %}selected{% endif %}>Internship</option>
+            <option value="workshop" {% if current_type == 'workshop' %}selected{% endif %}>Workshop</option>
+        </select>
+        {% if search_query or current_type %}
+        <a href="{% url 'certificates' %}" style="font-size:13px;color:var(--auralith-blue);">Clear filters</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="data-card" style="padding:0;overflow:hidden;">
+    <table>
+        <thead>
+            <tr>
+                <th>Certificate #</th>
+                <th>Student</th>
+                <th>Type</th>
+                <th>Course</th>
+                <th>Issue Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cert in certificates %}
+            <tr>
+                <td><strong>{{ cert.certificate_number }}</strong></td>
+                <td>{{ cert.student.name }}</td>
+                <td><span class="tag {% if cert.certificate_type == 'course' %}completed{% elif cert.certificate_type == 'workshop' %}enrollment{% else %}active{% endif %}">{{ cert.get_certificate_type_display }}</span></td>
+                <td>{{ cert.course.name|default:"—" }}</td>
+                <td>{{ cert.issue_date|date:"M d, Y" }}</td>
+                <td>
+                    <span class="tag {% if cert.status == 'issued' %}completed{% elif cert.status == 'revoked' %}cancelled{% else %}enrollment{% endif %}">
+                        {{ cert.get_status_display }}
+                    </span>
+                </td>
+                <td>
+                    <div style="display:flex;gap:8px;">
+                        <a href="{% url 'preview_certificate' cert.id %}" class="btn-text" style="font-size:13px;"><i class="ph ph-eye"></i> View</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">
+                    <i class="ph ph-certificate" style="font-size:40px;display:block;margin-bottom:12px;"></i>
+                    No certificates found.
+                    {% if is_admin %}
+                    <a href="{% url 'issue_certificate' %}" style="display:block;margin-top:8px;">Issue a certificate</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

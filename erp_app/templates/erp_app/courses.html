@@ -1,0 +1,50 @@
+{% extends 'erp_app/base.html' %}
+{% load static %}
+{% block title %}Course Management{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
+    <div class="header-info">
+        <h1>Course Management</h1>
+        <p>Manage training programs and student enrollment</p>
+    </div>
+    {% if is_admin %}
+    <a href="{% url 'admin:erp_app_course_add' %}" class="btn-primary"><i class="ph ph-plus"></i> Create New Course</a>
+    {% endif %}
+</header>
+
+<div class="course-grid">
+    {% for course in courses %}
+    <div class="course-card">
+        <div class="course-header {{ course.category }}">
+            <span class="category-tag">{{ course.get_category_display }}</span>
+            {% if course.status == 'completed' %}
+            <span class="tag completed" style="font-size:10px;"><i class="ph ph-certificate"></i> Certified</span>
+            {% else %}
+            <i class="ph ph-dots-three-vertical"></i>
+            {% endif %}
+        </div>
+        <div class="course-body">
+            <h3>{{ course.name }}</h3>
+            <p class="mentor">Mentor: <strong>{{ course.mentor.name|default:"—" }}</strong></p>
+            <div class="course-stats">
+                <span><i class="ph ph-users"></i> {{ course.enrollment_count }} Enrolled</span>
+                <span><i class="ph ph-clock"></i> {{ course.duration_weeks }} Weeks</span>
+            </div>
+            <div class="progress-group">
+                <label>Course Completion</label>
+                <div class="progress-bar"><div style="width: {{ course.completion_percent }}%;"></div></div>
+            </div>
+        </div>
+        <div class="course-footer">
+            <a href="{% url 'course_syllabus' course.id %}" class="btn-outline">View Syllabus</a>
+            <a href="{% url 'certificates' %}?type=course&q={{ course.name|urlencode }}" class="btn-outline"><i class="ph ph-certificate"></i> Certificates</a>
+            {% if is_admin %}
+            <a href="{% url 'admin:erp_app_course_change' course.id %}" class="btn-filled">Manage Students</a>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <p style="color:#94a3b8;">No courses found. <a href="{% url 'admin:erp_app_course_add' %}">Create one</a>.</p>
+    {% endfor %}
+</div>
+{% endblock %}
