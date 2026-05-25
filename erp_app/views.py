@@ -923,15 +923,21 @@ def download_certificate(request, cert_id):
 
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
-            browser = p.chromium.launch()
+            browser = p.chromium.launch(args=[
+                '--disable-gpu',
+                '--disable-dev-shm-usage',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+            ])
             page = browser.new_page(viewport={'width': 816, 'height': 1056})
-            page.set_content(html_content, wait_until='networkidle')
+            page.set_content(html_content, wait_until='load', timeout=30000)
             page.pdf(
                 path=pdf_path,
-                format='letter',
+                format='Letter',
                 print_background=True,
                 margin={'top': '0', 'bottom': '0', 'left': '0', 'right': '0'},
             )
+            page.close()
             browser.close()
 
         cert.file.name = f'certificates/{cert.certificate_number}.pdf'

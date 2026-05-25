@@ -32,9 +32,6 @@ body { background: var(--bg); color: var(--text-dark); }
 
 /* Sidebar */
 .sidebar { width: var(--sidebar-w); background: var(--auralith-blue); color: white; padding: 20px; position: fixed; height: 100vh; overflow-y: auto; left: 0; top: 0; display: flex; flex-direction: column; }
-.brand { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-.sidebar-logo { width: 60px; height: 60px; border-radius: 8px; object-fit: contain; }
-.brand h2 { font-size: 14px; text-align: center; margin: 0; font-weight: 700; }
 nav { flex: 1; }
 .logo-icon { background: var(--accent); padding: 5px 12px; border-radius: 6px; font-weight: bold; }
 .nav-label { font-size: 11px; text-transform: uppercase; opacity: 0.5; margin: 20px 0 10px; }
@@ -266,23 +263,28 @@ td { padding: 15px 12px; font-size: 14px; border-bottom: 1px solid #F1F5F9; }
 
 .brand {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 40px;
-    padding-left: 10px; /* Adjust based on your preference */
+    justify-content: center;
+    gap: 10px;
+    margin: 0 0 28px;
+    padding: 20px 28px;
+    background: rgba(255,255,255,0.93);
+    border-radius: 12px;
+    text-align: center;
 }
 
 .sidebar-logo {
-    width: 40px;      /* Matches the size of the previous icon */
-    height: auto;     /* Maintains aspect ratio */
+    width: 56px;
+    height: auto;
     object-fit: contain;
-    border-radius: 4px; /* Optional: if your logo looks better with rounded corners */
+    border-radius: 8px;
 }
 
 .brand h2 {
-    font-size: 1.2rem;
-    color: white;
-    letter-spacing: 1px;
+    font-size: 18px;
+    color: var(--auralith-blue);
+    letter-spacing: 2px;
     white-space: nowrap;
 }
 
@@ -344,6 +346,16 @@ td { padding: 15px 12px; font-size: 14px; border-bottom: 1px solid #F1F5F9; }
 .tag.cancelled { background: #FEF2F2; color: #991B1B; }
 .tag.dropped { background: #FEF2F2; color: #991B1B; }
 .tag.active { background: #DCFCE7; color: #166534; }
+
+.dark-theme .tag { background: #334155; color: #E2E8F0; }
+.dark-theme .tag.upcoming { background: #78350F; color: #FDE68A; }
+.dark-theme .tag.enrollment { background: #1E3A5F; color: #93C5FD; }
+.dark-theme .tag.completed { background: #064E3B; color: #6EE7B7; }
+.dark-theme .tag.in_progress { background: #1E3A5F; color: #93C5FD; }
+.dark-theme .tag.on_hold { background: #78350F; color: #FDE68A; }
+.dark-theme .tag.cancelled { background: #7F1D1D; color: #FCA5A5; }
+.dark-theme .tag.dropped { background: #7F1D1D; color: #FCA5A5; }
+.dark-theme .tag.active { background: #064E3B; color: #6EE7B7; }
 
 .project-item { margin-bottom: 15px; }
 .project-item p { font-size: 14px; margin-bottom: 6px; font-weight: 500; }
