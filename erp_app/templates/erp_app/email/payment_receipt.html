@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #f4f7fc; }
+        .container { max-width: 600px; margin: 30px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .header { background: #1a3a5c; color: white; padding: 30px 40px; text-align: center; }
+        .header h1 { margin: 0; font-size: 22px; }
+        .header p { margin: 6px 0 0; opacity: 0.85; font-size: 13px; }
+        .body { padding: 30px 40px; }
+        .greeting { font-size: 16px; margin: 0 0 20px; color: #1e293b; }
+        .receipt-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .receipt-table th { text-align: left; padding: 10px 12px; background: #f1f5f9; color: #475569; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .receipt-table td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+        .receipt-table td:last-child, .receipt-table th:last-child { text-align: right; }
+        .totals { margin-top: 16px; border-top: 2px solid #e2e8f0; padding-top: 12px; }
+        .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; color: #475569; }
+        .total-row strong { color: #1e293b; }
+        .total-row.final { font-size: 17px; font-weight: 700; color: #1a3a5c; border-top: 1px solid #cbd5e1; padding-top: 10px; margin-top: 6px; }
+        .status-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+        .status-completed { background: #dcfce7; color: #166534; }
+        .status-partial { background: #fef9c3; color: #854d0e; }
+        .status-pending { background: #fee2e2; color: #991b1b; }
+        .payments-list { margin: 16px 0; }
+        .payment-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #e2e8f0; font-size: 14px; }
+        .footer { padding: 20px 40px; background: #f8fafc; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Payment Receipt</h1>
+            <p>Auralith Bit — Centre for Development & Training</p>
+        </div>
+        <div class="body">
+            <p class="greeting">Dear {{ enrollment.student.name }},</p>
+            <p>Please find below the payment receipt for your course enrollment.</p>
+
+            <table class="receipt-table">
+                <tr>
+                    <th>Course</th>
+                    <td>{{ enrollment.course.name }}</td>
+                </tr>
+                <tr>
+                    <th>Enrolled Date</th>
+                    <td>{{ enrollment.enrolled_date }}</td>
+                </tr>
+                <tr>
+                    <th>Status</th>
+                    <td>
+                        <span class="status-badge status-{{ enrollment.payment_status_text|lower }}">
+                            {{ enrollment.payment_status_text }}
+                        </span>
+                    </td>
+                </tr>
+            </table>
+
+            <h3 style="margin: 20px 0 10px; font-size: 15px; color: #1e293b;">Payment History</h3>
+            <div class="payments-list">
+                {% for payment in payments %}
+                <div class="payment-item">
+                    <span>{{ payment.payment_date|date:"M d, Y" }}{% if payment.transaction_id %} ({{ payment.transaction_id }}){% endif %}</span>
+                    <strong>Rs. {{ payment.amount }}</strong>
+                </div>
+                {% empty %}
+                <p style="color: #94a3b8; font-size: 14px;">No payments recorded yet.</p>
+                {% endfor %}
+            </div>
+
+            <div class="totals">
+                <div class="total-row">
+                    <span>Total Fee</span>
+                    <strong>Rs. {{ enrollment.total_fee }}</strong>
+                </div>
+                <div class="total-row">
+                    <span>Total Paid</span>
+                    <strong>Rs. {{ enrollment.total_paid }}</strong>
+                </div>
+                <div class="total-row">
+                    <span>Pending Amount</span>
+                    <strong>Rs. {{ enrollment.pending_fee }}</strong>
+                </div>
+                <div class="total-row final">
+                    <span>Status</span>
+                    <span>{{ enrollment.payment_status_text }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <p>Auralith Bit — Centre for Development & Training</p>
+            <p>This is an automatically generated receipt. If you have any questions, please contact the admin.</p>
+        </div>
+    </div>
+</body>
+</html>

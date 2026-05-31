@@ -96,6 +96,7 @@ class CourseEnrollment(models.Model):
     ]
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='enrollments')
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='enrollments')
+    total_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     enrolled_date = models.DateField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
 
@@ -104,6 +105,36 @@ class CourseEnrollment(models.Model):
 
     def __str__(self):
         return f"{self.student.name} -> {self.course.name}"
+
+    def total_paid(self):
+        return self.payments.aggregate(total=models.Sum('amount'))['total'] or 0
+
+    def pending_fee(self):
+        return self.total_fee - self.total_paid()
+
+    def is_fully_paid(self):
+        return self.pending_fee() <= 0
+
+    def payment_status_text(self):
+        if self.is_fully_paid():
+            return 'Completed'
+        if self.total_paid() > 0:
+            return 'Partial'
+        return 'Pending'
+
+
+class Payment(models.Model):
+    enrollment = models.ForeignKey(CourseEnrollment, on_delete=models.CASCADE, related_name='payments')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_date = models.DateTimeField(auto_now_add=True)
+    transaction_id = models.CharField(max_length=100, blank=True)
+    remarks = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-payment_date']
+
+    def __str__(self):
+        return f"Payment of {self.amount} for {self.enrollment}"
 
 
 class Certificate(models.Model):

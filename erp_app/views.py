@@ -19,7 +19,9 @@ from django.urls import reverse, NoReverseMatch
 from django.http import JsonResponse, HttpResponse, FileResponse
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_http_methods
-from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate
+from django.core.mail import send_mail
+from django.utils.html import strip_tags
+from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate, CourseEnrollment, Payment
 from .roles import (get_user_roles, has_role,
     SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF, STUDENT, INTERN,
     role_required, teaching_staff_required, normal_staff_required, staff_required)
@@ -60,56 +62,83 @@ def index(request):
 def register_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
+    form_data = {}
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        email = request.POST.get('email', '')
-        if not username or not password:
-            messages.error(request, 'Please provide both username and password.')
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        password2 = request.POST.get('password2', '')
+        email = request.POST.get('email', '').strip()
+        form_data = {'username': username, 'email': email}
+        errors = []
+        if not username:
+            errors.append('Username is required.')
+        elif username[0].isdigit():
+            errors.append('Username must not start with a number.')
         elif User.objects.filter(username=username).exists():
-            messages.error(request, 'Username already exists. Please choose another.')
-        else:
+            errors.append('Username already exists. Please choose another.')
+        if not email:
+            errors.append('Email is required.')
+        if not password:
+            errors.append('Password is required.')
+        elif len(password) < 8:
+            errors.append('Password must be at least 8 characters.')
+        if password != password2:
+            errors.append('Passwords do not match.')
+        if not errors:
             user = User.objects.create_user(username=username, password=password, email=email)
-            Student.objects.get_or_create(
-                user=user,
-                defaults={'name': username, 'email': email}
-            )
+            student = Student.objects.create(user=user, name=username, email=email)
+            try:
+                student_group = Group.objects.get(name='student')
+                user.groups.add(student_group)
+            except Group.DoesNotExist:
+                pass
             messages.success(request, 'Account created successfully. Please sign in.')
             return redirect('login')
-    return render(request, 'erp_app/register.html')
+        for error in errors:
+            messages.error(request, error)
+    return render(request, 'erp_app/register.html', {'form_data': form_data})
 
     #staff registration view with code verification and role assignment
 def staff_register_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        email = request.POST.get('email', '')
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        email = request.POST.get('email', '').strip()
         staff_type = request.POST.get('staff_type', '')
-        staff_code = request.POST.get('staff_code', '')
+        staff_code = request.POST.get('staff_code', '').strip()
 
         expected_code = getattr(settings, 'STAFF_REGISTRATION_CODE', 'STAFF2024')
+        errors = []
         if staff_code != expected_code:
-            messages.error(request, 'Invalid staff registration code.')
+            errors.append('Invalid staff registration code.')
+        if not username:
+            errors.append('Username is required.')
+        elif username[0].isdigit():
+            errors.append('Username must not start with a number.')
+        elif User.objects.filter(username=username).exists():
+            errors.append('Username already exists.')
+        if not password:
+            errors.append('Password is required.')
+        elif len(password) < 8:
+            errors.append('Password must be at least 8 characters.')
+        if staff_type not in ('teaching', 'normal'):
+            errors.append('Invalid staff type.')
+        if errors:
+            for error in errors:
+                messages.error(request, error)
             return render(request, 'erp_app/staff_register.html')
 
-        if not username or not password:
-            messages.error(request, 'Please provide both username and password.')
-        elif User.objects.filter(username=username).exists():
-            messages.error(request, 'Username already exists.')
-        elif staff_type not in ('teaching', 'normal'):
-            messages.error(request, 'Invalid staff type.')
-        else:
-            user = User.objects.create_user(username=username, password=password, email=email)
-            group_name = 'teaching_staff' if staff_type == 'teaching' else 'normal_staff'
-            try:
-                group = Group.objects.get(name=group_name)
-                user.groups.add(group)
-            except Group.DoesNotExist:
-                pass
-            messages.success(request, f'{staff_type.title()} staff account created. Please sign in.')
-            return redirect('login')
+        user = User.objects.create_user(username=username, password=password, email=email)
+        group_name = 'teaching_staff' if staff_type == 'teaching' else 'normal_staff'
+        try:
+            group = Group.objects.get(name=group_name)
+            user.groups.add(group)
+        except Group.DoesNotExist:
+            pass
+        messages.success(request, f'{staff_type.title()} staff account created. Please sign in.')
+        return redirect('login')
     return render(request, 'erp_app/staff_register.html')
 
 
@@ -947,3 +976,60 @@ def download_certificate(request, cert_id):
     except Exception as e:
         messages.error(request, f'Could not generate PDF: {e}')
         return redirect('preview_certificate', cert_id=cert.id)
+
+
+@login_required
+def my_courses(request):
+    if not hasattr(request.user, 'student_profile'):
+        messages.error(request, 'Only students can access this page.')
+        return redirect('dashboard')
+    student = request.user.student_profile
+    enrollments = CourseEnrollment.objects.filter(
+        student=student, status__in=['active', 'completed']
+    ).select_related('course').prefetch_related('payments')
+    if not enrollments:
+        messages.info(request, 'You are not enrolled in any courses yet.')
+    roles = get_user_roles(request.user)
+    context = {
+        'enrollments': enrollments,
+        'is_any_staff': has_role(request.user, SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF),
+        'is_super_admin': SUPER_ADMIN in roles,
+        'is_teaching_staff': TEACHING_STAFF in roles,
+        'is_normal_staff': NORMAL_STAFF in roles,
+    }
+    return render(request, 'erp_app/my_courses.html', context)
+
+
+def send_payment_receipt(request, enrollment_id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if not has_role(request.user, SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF):
+        messages.error(request, 'You do not have permission to send receipts.')
+        return redirect('dashboard')
+
+    enrollment = get_object_or_404(
+        CourseEnrollment.objects.select_related('student', 'course').prefetch_related('payments'),
+        id=enrollment_id
+    )
+    payments = enrollment.payments.all()
+
+    subject = f'Payment Receipt — {enrollment.course.name}'
+    html_message = render_to_string('erp_app/email/payment_receipt.html', {
+        'enrollment': enrollment,
+        'payments': payments,
+    })
+    plain_message = strip_tags(html_message)
+    recipient = enrollment.student.email
+
+    try:
+        send_mail(subject, plain_message, None, [recipient], html_message=html_message)
+        Notification.objects.create(
+            title='Receipt Sent',
+            message=f'Payment receipt for {enrollment.course.name} sent to {enrollment.student.name} ({recipient}).',
+            created_by=request.user,
+        )
+        messages.success(request, f'Receipt sent to {enrollment.student.email}')
+    except Exception as e:
+        messages.error(request, f'Failed to send receipt: {e}')
+
+    return redirect(request.META.get('HTTP_REFERER', 'dashboard'))

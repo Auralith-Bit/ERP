@@ -1,6 +1,9 @@
 from django.contrib import admin
 from django.db.models import Count
-from .models import Mentor, Department, Course, Student, CourseEnrollment, Employee, Project, Notification, IDCard, Certificate
+from django.template.loader import render_to_string
+from django.core.mail import send_mail
+from django.utils.html import format_html, strip_tags
+from .models import Mentor, Department, Course, Student, CourseEnrollment, Employee, Project, Notification, IDCard, Certificate, Payment
 
 
 class CourseEnrollmentInline(admin.TabularInline):
@@ -79,9 +82,58 @@ class StudentAdmin(admin.ModelAdmin):
 
 @admin.register(CourseEnrollment)
 class CourseEnrollmentAdmin(admin.ModelAdmin):
-    list_display = ['student', 'course', 'enrolled_date', 'status']
+    list_display = ['student', 'course', 'total_fee', 'total_paid_display', 'pending_fee_display', 'payment_status_display', 'enrolled_date', 'status']
     list_filter = ['status']
     search_fields = ['student__name', 'course__name']
+    actions = ['send_receipt']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('payments')
+
+    def total_paid_display(self, obj):
+        return obj.total_paid()
+    total_paid_display.short_description = 'Paid'
+
+    def pending_fee_display(self, obj):
+        return obj.pending_fee()
+    pending_fee_display.short_description = 'Pending'
+
+    def payment_status_display(self, obj):
+        status = obj.payment_status_text()
+        colors = {'Completed': 'green', 'Partial': 'orange', 'Pending': 'red'}
+        color = colors.get(status, 'gray')
+        return format_html('<span style="color:{};font-weight:600;">{}</span>', color, status)
+    payment_status_display.short_description = 'Payment'
+
+    def send_receipt(self, request, queryset):
+        sent = 0
+        for enrollment in queryset.select_related('student', 'course').prefetch_related('payments'):
+            payments = enrollment.payments.all()
+            subject = f'Payment Receipt — {enrollment.course.name}'
+            html_message = render_to_string('erp_app/email/payment_receipt.html', {
+                'enrollment': enrollment,
+                'payments': payments,
+            })
+            plain_message = strip_tags(html_message)
+            try:
+                send_mail(subject, plain_message, None, [enrollment.student.email], html_message=html_message)
+                Notification.objects.create(
+                    title='Receipt Sent',
+                    message=f'Payment receipt for {enrollment.course.name} sent to {enrollment.student.name}.',
+                    created_by=request.user,
+                )
+                sent += 1
+            except Exception as e:
+                self.message_user(request, f'Failed for {enrollment.student.email}: {e}', level='ERROR')
+        self.message_user(request, f'Receipt sent to {sent} student(s).')
+    send_receipt.short_description = 'Send payment receipt to selected enrollments'
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ['enrollment', 'amount', 'payment_date', 'transaction_id']
+    list_filter = ['payment_date']
+    search_fields = ['enrollment__student__name', 'enrollment__course__name', 'transaction_id']
 
 
 @admin.register(Employee)

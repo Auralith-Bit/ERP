@@ -1,0 +1,101 @@
+{% extends 'erp_app/base.html' %}
+{% load static %}
+{% block title %}My Courses{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>My Enrolled Courses</h1>
+</div>
+
+{% if enrollments %}
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Course</th>
+                <th>Category</th>
+                <th>Enrolled Date</th>
+                <th>Total Fee</th>
+                <th>Paid</th>
+                <th>Pending</th>
+                <th>Status</th>
+                {% if is_any_staff %}<th>Actions</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for enrollment in enrollments %}
+            <tr>
+                <td><strong>{{ enrollment.course.name }}</strong></td>
+                <td>{{ enrollment.course.get_category_display }}</td>
+                <td>{{ enrollment.enrolled_date }}</td>
+                <td>Rs. {{ enrollment.total_fee }}</td>
+                <td>Rs. {{ enrollment.total_paid }}</td>
+                <td>Rs. {{ enrollment.pending_fee }}</td>
+                <td>
+                    {% if enrollment.is_fully_paid %}
+                    <span class="badge badge-success">Completed</span>
+                    {% elif enrollment.total_paid > 0 %}
+                    <span class="badge badge-warning">Partial</span>
+                    {% else %}
+                    <span class="badge badge-danger">Pending</span>
+                    {% endif %}
+                </td>
+                {% if is_any_staff %}
+                <td>
+                    <a href="{% url 'send_receipt' enrollment.id %}" class="btn-sm" onclick="return confirm('Send payment receipt to {{ enrollment.student.email }}?')">Send Receipt</a>
+                </td>
+                {% endif %}
+            </tr>
+            {% if enrollment.payments.all %}
+            <tr style="background: #f8fafc;">
+                <td colspan="7">
+                    <details>
+                        <summary style="cursor:pointer;color:var(--primary);font-size:13px;">View Payment History</summary>
+                        <div style="margin-top:8px;">
+                            <table style="width:100%;font-size:13px;border-collapse:collapse;">
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <th style="padding:6px 8px;text-align:left;">Date</th>
+                                    <th style="padding:6px 8px;text-align:left;">Transaction ID</th>
+                                    <th style="padding:6px 8px;text-align:right;">Amount</th>
+                                    <th style="padding:6px 8px;text-align:left;">Remarks</th>
+                                </tr>
+                                {% for payment in enrollment.payments.all %}
+                                <tr style="border-bottom:1px solid #f1f5f9;">
+                                    <td style="padding:6px 8px;">{{ payment.payment_date|date:"M d, Y" }}</td>
+                                    <td style="padding:6px 8px;">{{ payment.transaction_id|default:"—" }}</td>
+                                    <td style="padding:6px 8px;text-align:right;"><strong>Rs. {{ payment.amount }}</strong></td>
+                                    <td style="padding:6px 8px;">{{ payment.remarks|default:"—" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </table>
+                        </div>
+                    </details>
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="ph ph-book-open" style="font-size:48px;color:var(--text-muted);"></i>
+    <h3>No Enrolled Courses</h3>
+    <p>You are not enrolled in any courses yet.</p>
+</div>
+{% endif %}
+
+<style>
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-header h1 { margin: 0; font-size: 22px; color: var(--text-dark); }
+    .table-container { background: var(--surface); border: 1px solid var(--panel-border); border-radius: 12px; overflow: hidden; }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--panel-border); }
+    .data-table th { background: var(--bg); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600; }
+    .badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-warning { background: #fef9c3; color: #854d0e; }
+    .badge-danger { background: #fee2e2; color: #991b1b; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .btn-sm { display: inline-block; padding: 5px 12px; font-size: 12px; font-weight: 600; color: #fff; background: #1a3a5c; border-radius: 6px; text-decoration: none; }
+</style>
+{% endblock %}

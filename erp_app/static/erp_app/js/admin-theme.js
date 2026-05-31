@@ -35,4 +35,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     setAdminTheme(localStorage.getItem(storageKey) || 'light');
+
+    document.addEventListener('wheel', function(e) {
+        if (e.target.type === 'number') e.preventDefault();
+    }, { passive: false });
 });

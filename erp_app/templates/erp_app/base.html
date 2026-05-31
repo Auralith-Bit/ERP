@@ -44,6 +44,9 @@
                 {% if is_any_staff %}
                 <a href="{% url 'integration' %}" {% if request.resolver_match.url_name == 'integration' %}class="active"{% endif %}><i class="ph ph-plugs-connected"></i> Integration</a>
                 {% endif %}
+                {% if is_student or is_intern %}
+                <a href="{% url 'my_courses' %}" {% if request.resolver_match.url_name == 'my_courses' %}class="active"{% endif %}><i class="ph ph-book"></i> My Courses</a>
+                {% endif %}
                 <p class="nav-label">Management</p>
                 {% if is_normal_staff or is_super_admin or is_teaching_staff %}
                 <a href="{% url 'id_generation' %}" {% if request.resolver_match.url_name == 'id_generation' %}class="active"{% endif %}><i class="ph ph-identification-card"></i> ID Cards</a>
@@ -213,6 +216,10 @@
 
         refreshNotifications();
         setInterval(refreshNotifications, 15000);
+
+        document.addEventListener('wheel', function(e) {
+            if (e.target.type === 'number') e.preventDefault();
+        }, { passive: false });
     </script>
 </body>
 </html>

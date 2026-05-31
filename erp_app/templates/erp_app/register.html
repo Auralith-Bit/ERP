@@ -36,20 +36,28 @@
                 <div class="alert">{{ message }}</div>
                 {% endfor %}
             {% endif %}
-            <form method="post">
+            <form method="post" novalidate>
                 {% csrf_token %}
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" name="username" placeholder="Choose a username" required>
+                    <input type="text" id="username" name="username" placeholder="Choose a username" maxlength="150" value="{{ form_data.username|default:'' }}" required>
+                    <small class="field-error" id="usernameError" style="display:none;color:#dc2626;font-size:12px;margin-top:4px;"></small>
                 </div>
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" placeholder="Your email address" required>
+                    <input type="email" id="email" name="email" placeholder="Your email address" maxlength="254" value="{{ form_data.email|default:'' }}" required>
+                    <small class="field-error" id="emailError" style="display:none;color:#dc2626;font-size:12px;margin-top:4px;"></small>
                 </div>
                 <div class="form-group" style="position:relative;">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="Create a password" required>
+                    <input type="password" id="password" name="password" placeholder="Create a password" minlength="8" maxlength="128" required>
                     <button id="togglePassword" type="button" style="position:absolute;right:12px;top:36px;border:none;background:none;color:#64748B;cursor:pointer;font-size:14px;">Show</button>
+                    <small class="field-error" id="passwordError" style="display:none;color:#dc2626;font-size:12px;margin-top:4px;"></small>
+                </div>
+                <div class="form-group" style="position:relative;">
+                    <label for="password2">Confirm Password</label>
+                    <input type="password" id="password2" name="password2" placeholder="Confirm your password" minlength="8" maxlength="128" required>
+                    <small class="field-error" id="password2Error" style="display:none;color:#dc2626;font-size:12px;margin-top:4px;"></small>
                 </div>
                 <button type="submit" class="login-btn"><i class="ph ph-user-plus"></i> Register</button>
             </form>
@@ -75,6 +83,31 @@
                 }
             });
         }
+        document.querySelector('.login-card form').addEventListener('submit', function(e) {
+            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const password2 = document.getElementById('password2').value;
+            const ue = document.getElementById('usernameError');
+            const ee = document.getElementById('emailError');
+            const pe = document.getElementById('passwordError');
+            const p2e = document.getElementById('password2Error');
+            const errors = [ue, ee, pe, p2e];
+            errors.forEach(el => { el.style.display = 'none'; });
+            let valid = true;
+            if (!username) { ue.textContent = 'Username is required.'; ue.style.display = 'block'; valid = false; }
+            else if (/^[0-9]/.test(username)) { ue.textContent = 'Username must not start with a number.'; ue.style.display = 'block'; valid = false; }
+            if (!email) { ee.textContent = 'Email is required.'; ee.style.display = 'block'; valid = false; }
+            else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { ee.textContent = 'Enter a valid email address.'; ee.style.display = 'block'; valid = false; }
+            if (!password) { pe.textContent = 'Password is required.'; pe.style.display = 'block'; valid = false; }
+            else if (password.length < 8) { pe.textContent = 'Password must be at least 8 characters.'; pe.style.display = 'block'; valid = false; }
+            if (!password2) { p2e.textContent = 'Please confirm your password.'; p2e.style.display = 'block'; valid = false; }
+            else if (password !== password2) { p2e.textContent = 'Passwords do not match.'; p2e.style.display = 'block'; valid = false; }
+            if (!valid) e.preventDefault();
+        });
+        document.addEventListener('wheel', function(e) {
+            if (e.target.type === 'number') e.preventDefault();
+        }, { passive: false });
     </script>
 </body>
 </html>

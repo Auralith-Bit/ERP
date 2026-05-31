@@ -80,3 +80,17 @@ MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Email configuration for payment receipts.
+# Fill these from environment variables, or put temporary local values in the
+# empty strings below while testing. Do not commit real Gmail credentials.
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER','suppudubedi2000@gmail.com')  
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD','uans uzci uivc nmcn')  
+DEFAULT_FROM_EMAIL = os.environ.get(
+    'DEFAULT_FROM_EMAIL',
+    f'Auralith ERP <{EMAIL_HOST_USER}>' if EMAIL_HOST_USER else 'Auralith ERP <your-main-gmail@gmail.com>',
+)

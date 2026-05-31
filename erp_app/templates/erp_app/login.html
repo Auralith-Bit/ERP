@@ -77,12 +77,14 @@
                 {% endif %}
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" name="username" placeholder="Enter your username" required>
+                    <input type="text" id="username" name="username" placeholder="Enter your username" maxlength="150" required>
+                    <small class="field-error" id="usernameError" style="display:none;color:#dc2626;font-size:12px;margin-top:4px;"></small>
                 </div>
                 <div class="form-group" style="position:relative;">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" minlength="4" maxlength="128" required>
                     <button id="togglePassword" type="button" style="position:absolute;right:12px;top:36px;border:none;background:none;color:#64748B;cursor:pointer;font-size:14px;">Show</button>
+                    <small class="field-error" id="passwordError" style="display:none;color:#dc2626;font-size:12px;margin-top:4px;"></small>
                 </div>
                 <button type="submit" class="login-btn"><i class="ph ph-sign-in"></i> Sign In</button>
             </form>
@@ -106,6 +108,37 @@
                 }
             });
         }
+        document.querySelector('.login-card form').addEventListener('submit', function(e) {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const usernameError = document.getElementById('usernameError');
+            const passwordError = document.getElementById('passwordError');
+            let valid = true;
+            usernameError.style.display = 'none';
+            passwordError.style.display = 'none';
+            if (!username) {
+                usernameError.textContent = 'Username is required.';
+                usernameError.style.display = 'block';
+                valid = false;
+            } else if (/^[0-9]/.test(username)) {
+                usernameError.textContent = 'Username must not start with a number.';
+                usernameError.style.display = 'block';
+                valid = false;
+            }
+            if (!password) {
+                passwordError.textContent = 'Password is required.';
+                passwordError.style.display = 'block';
+                valid = false;
+            } else if (password.length < 4) {
+                passwordError.textContent = 'Password must be at least 4 characters.';
+                passwordError.style.display = 'block';
+                valid = false;
+            }
+            if (!valid) e.preventDefault();
+        });
+        document.addEventListener('wheel', function(e) {
+            if (e.target.type === 'number') e.preventDefault();
+        }, { passive: false });
     </script>
 </body>
 </html>

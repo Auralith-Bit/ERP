@@ -36,4 +36,7 @@ urlpatterns = [
     path('promote-intern/<int:student_id>/', views.promote_to_intern, name='promote_to_intern'),
     path('certificates/<int:cert_id>/', views.preview_certificate, name='preview_certificate'),
     path('certificates/<int:cert_id>/download/', views.download_certificate, name='download_certificate'),
+    # Payment & Receipt routes
+    path('my-courses/', views.my_courses, name='my_courses'),
+    path('send-receipt/<int:enrollment_id>/', views.send_payment_receipt, name='send_receipt'),
 ]

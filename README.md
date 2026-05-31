@@ -21,6 +21,17 @@ Browse to **http://localhost:8000**
 > python -m playwright install chromium
 > ```
 
+### Email Setup
+
+Payment receipts are sent through Gmail SMTP. Set these environment variables before running the server:
+
+```bash
+EMAIL_HOST_USER=your-main-gmail@gmail.com
+EMAIL_HOST_PASSWORD=your-gmail-app-password
+```
+
+For Gmail, use an **App Password** instead of your normal Gmail password.
+
 ### Default Credentials
 
 | Username | Password | Role |
@@ -32,13 +43,21 @@ Browse to **http://localhost:8000**
 
 ## Features
 
+### Authentication & Validation
+- **Login form** — client-side validation (non-empty fields, min password length) with inline error messages, server-side validation fallback
+- **Register form** — client-side validation (username/email required, email format, password min 8 chars, password confirmation match), form data persists on validation errors
+- **Staff register** — same validation improvements with password length check
+- **Username validation** — username must not start with a digit (enforced both client-side and server-side across all registration and login forms)
+- Error messages displayed on the same page without losing form data
+
 ### Course Management
 - Course catalog with mentor assignments, category color-coding, enrollment tracking
 - Syllabus file upload and download per course
 - Progress tracking with completion percentage per course
+- **My Courses page** — shows "No Enrolled Courses" message with info alert when a student has no course enrollments (instead of a generic redirect)
 
 ### People Management
-- **Students** — self-registration, enrollment in courses, intern promotion
+- **Students** — self-registration, enrollment in courses, intern promotion. New student registrations automatically assigned to the `student` auth Group.
 - **Mentors** — profile cards with specialization, bio, and course count
 - **Employees** — filterable table by type (Intern/Staff/Mentor/Admin), department assignment
 - **Departments** — organizational structure with head and member lists
@@ -78,6 +97,7 @@ Browse to **http://localhost:8000**
 ### Database Workbench
 - Browse all `erp_app` models with field listing and record counts
 - Dynamic table view for any model with sortable columns
+- Number input spinners (increase/decrease arrows) and scroll-wheel value changes removed globally via CSS and JS — applies to all number/decimal fields including `total_fee` (CourseEnrollment), `amount` (Payment), and all Admin forms
 
 ### System Integration
 - Integration page with service connection cards (Google, Slack, Payment Gateway, Mailchimp, Cloud, Analytics)
@@ -114,8 +134,8 @@ AURALITH erp/
 │   └── wsgi.py / asgi.py      # WSGI/ASGI entry points
 │
 ├── erp_app/                   # Main application
-│   ├── models.py              # 9 models (308 lines)
-│   ├── views.py               # 25+ view functions (938 lines)
+│   ├── models.py              # 9 models (340 lines)
+│   ├── views.py               # 25+ view functions (1031 lines)
 │   ├── urls.py                # 31 URL patterns
 │   ├── admin.py               # Admin registrations for all models
 │   ├── roles.py               # RBAC: constants, decorators, helpers
@@ -130,7 +150,7 @@ AURALITH erp/
 │   │
 │   └── static/
 │       └── erp_app/
-│           ├── css/style.css      # All app styles (390 lines)
+│           ├── css/style.css      # All app styles (405 lines)
 │           ├── css/admin-theme.css # Admin dark mode
 │           └── js/admin-theme.js   # Admin toggle button
 │
@@ -369,6 +389,8 @@ The certificate download pipeline uses **Playwright** (headless Chromium), not W
 |--------|---------|--------|
 | `assign_user_groups` | Student post_save | Auto-assigns `student` (and `intern`) auth Groups to linked User |
 | `auto_create_course_certificate` | CourseEnrollment post_save | Auto-creates Certificate when enrollment → `completed` |
+
+Additionally, the `register_view` directly assigns the `student` group to newly registered users for redundancy.
 
 ---
 
