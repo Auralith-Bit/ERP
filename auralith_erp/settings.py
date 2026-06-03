@@ -10,12 +10,12 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'local-dev-fallback-change-before-depl
 
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'erp-akwh.onrender.com,localhost,127.0.0.1').split(',')
 
 # Allow Render's HTTPS origin for CSRF
 CSRF_TRUSTED_ORIGINS = [
     f"https://{host}"
-    for host in os.environ.get('ALLOWED_HOSTS', '').split(',')
+    for host in ALLOWED_HOSTS
     if host
 ]
 
