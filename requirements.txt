@@ -1,3 +1,6 @@
-django>=6.0,<6.1
+Django>=4.2,<5.3
 qrcode[pil]>=7.0
-playwright>=1.60
+gunicorn
+whitenoise
+psycopg2-binary
+dj-database-url

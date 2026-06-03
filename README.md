@@ -2,7 +2,7 @@
 
 **Enterprise Resource Planning** system for **Auralith Bit** — a training and development organization. Manages courses, mentors, students, employees, departments, projects, budgeting, ID cards, certificates, and notifications.
 
-Built with Django 6.0.
+Built with Django 4.2+.
 
 ---
 
@@ -16,10 +16,25 @@ python manage.py runserver
 
 Browse to **http://localhost:8000**
 
-> **Note:** Playwright Chromium must be installed for PDF certificate generation:
-> ```bash
-> python -m playwright install chromium
-> ```
+### Production Build (Render)
+
+A `build.sh` script is included for Render's build step:
+
+```bash
+./build.sh   # pip install → collectstatic → migrate
+```
+
+Set the following environment variables in your Render dashboard:
+
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `SECRET_KEY` | Yes | Long random string |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `ALLOWED_HOSTS` | Yes | Comma-separated (e.g. `myapp.onrender.com,localhost`) |
+| `DEBUG` | No | Set to `True` for local dev only |
+| `EMAIL_HOST_USER` | No | Gmail address for payment receipts |
+| `EMAIL_HOST_PASSWORD` | No | Gmail app password |
+| `STAFF_REGISTRATION_CODE` | No | Defaults to `AURALITH2024` |
 
 ### Email Setup
 
@@ -31,6 +46,8 @@ EMAIL_HOST_PASSWORD=your-gmail-app-password
 ```
 
 For Gmail, use an **App Password** instead of your normal Gmail password.
+
+> Credentials default to empty in `settings.py`. Never commit real credentials — set them via environment variables only.
 
 ### Default Credentials
 
@@ -113,9 +130,10 @@ For Gmail, use an **App Password** instead of your normal Gmail password.
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Django >=6.0, <6.1 |
-| Database | SQLite (`db.sqlite3`) |
-| PDF Engine | Playwright (headless Chromium) |
+| Framework | Django >=4.2, <5.3 |
+| Database | PostgreSQL (production) / SQLite (development) |
+| WSGI Server | Gunicorn |
+| Static Files | WhiteNoise |
 | QR Codes | `qrcode[pil]` >=7.0 |
 | Icons | Phosphor Icons (CDN) |
 | CSS | Custom variables with light/dark themes |
@@ -127,6 +145,8 @@ For Gmail, use an **App Password** instead of your normal Gmail password.
 
 ```
 AURALITH erp/
+│
+├── build.sh                  # Render build script (install → collectstatic → migrate)
 │
 ├── auralith_erp/              # Django project config
 │   ├── settings.py            # All configuration (DB, auth, static, media)
@@ -418,9 +438,12 @@ All 9 models registered in `admin.py` with `list_display`, `list_filter`, `searc
 ## Dependencies
 
 ```
-django>=6.0,<6.1       # Web framework
-qrcode[pil]>=7.0       # QR code generation (with Pillow)
-playwright>=1.60       # Headless Chromium for PDF generation
+Django>=4.2,<5.3        # Web framework
+gunicorn                # WSGI HTTP server (production)
+whitenoise              # Static file serving (production)
+psycopg2-binary         # PostgreSQL adapter (production)
+dj-database-url         # Parse DATABASE_URL into Django config
+qrcode[pil]>=7.0        # QR code generation (with Pillow)
 ```
 
 ---
@@ -437,10 +460,6 @@ Then visit `/admin/` to manage all models.
 
 ## Staff Registration Code
 
-Set in `settings.py`:
-
-```python
-STAFF_REGISTRATION_CODE = 'AURALITH2024'
-```
+Set via the `STAFF_REGISTRATION_CODE` environment variable (defaults to `AURALITH2024` in `settings.py`).
 
 Required when registering a new staff account at `/register/staff/`.
