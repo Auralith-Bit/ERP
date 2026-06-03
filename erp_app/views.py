@@ -285,29 +285,35 @@ def mentors(request):
     }
     return render(request, 'erp_app/mentors.html', context)
 
+class _MentorRow:
+    """Wraps a Mentor model instance to look like an Employee for the table template."""
+    def __init__(self, mentor):
+        self.name = mentor.name
+        self.email = mentor.email
+        self.department = mentor.department
+        self.role = mentor.specialization
+        self.employee_type = 'mentor'
+        self.joined_date = None
+    def get_employee_type_display(self):
+        return 'Mentor'
+
 @login_required
 def employees(request):
     employee_type = request.GET.get('type', '')
-    emp_list = Employee.objects.select_related('department').all()
-    mentor_list = Mentor.objects.annotate(course_count=Count('course')).all()
+    emp_list = list(Employee.objects.select_related('department').all())
+    mentor_rows = [_MentorRow(m) for m in Mentor.objects.annotate(course_count=Count('course')).all()]
 
     if employee_type:
         if employee_type == 'mentor':
-            context = {
-                'employees': Employee.objects.none(),
-                'mentors': mentor_list,
-                'types': Employee.EMPLOYEE_TYPES,
-                'current_type': employee_type,
-                'is_admin': has_role(request.user, SUPER_ADMIN, NORMAL_STAFF),
-            }
-            return render(request, 'erp_app/employees.html', context)
-        emp_list = emp_list.filter(employee_type=employee_type)
+            combined = mentor_rows
+        else:
+            combined = [e for e in emp_list if e.employee_type == employee_type]
+    else:
+        combined = sorted(emp_list + mentor_rows, key=lambda e: e.name.lower())
 
-    types = Employee.EMPLOYEE_TYPES
     context = {
-        'employees': emp_list,
-        'mentors': mentor_list,
-        'types': types,
+        'employees': combined,
+        'types': Employee.EMPLOYEE_TYPES,
         'current_type': employee_type,
         'is_admin': has_role(request.user, SUPER_ADMIN, NORMAL_STAFF),
     }

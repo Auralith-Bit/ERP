@@ -22,6 +22,7 @@ class Mentor(models.Model):
     email = models.EmailField(unique=True)
     specialization = models.CharField(max_length=200)
     bio = models.TextField(blank=True)
+    department = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         ordering = ['name']

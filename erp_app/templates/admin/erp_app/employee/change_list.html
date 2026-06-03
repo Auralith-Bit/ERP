@@ -1,0 +1,61 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block result_list %}
+  {% if action_form and actions_on_top and cl.show_admin_actions %}{% admin_actions %}{% endif %}
+  <div class="results">
+    <table id="result_list">
+      <thead>
+        <tr>
+          <th scope="col" class="action-checkbox-column">
+            <div class="text"><span><input type="checkbox" id="action-toggle" aria-label="{% translate "Select all objects on this page for an action" %}"></span></div>
+          </th>
+          <th scope="col"><div class="text"><span>{% translate "Name" %}</span></div></th>
+          <th scope="col"><div class="text"><span>{% translate "Email" %}</span></div></th>
+          <th scope="col"><div class="text"><span>{% translate "Department" %}</span></div></th>
+          <th scope="col"><div class="text"><span>{% translate "Role" %}</span></div></th>
+          <th scope="col"><div class="text"><span>{% translate "Type" %}</span></div></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for emp in cl.result_list %}
+        <tr>
+          <td class="action-checkbox"><input type="checkbox" name="_selected_action" value="{{ emp.pk }}" class="action-select"></td>
+          <th scope="row"><a href="{% url 'admin:erp_app_employee_change' emp.pk %}">{{ emp.name }}</a></th>
+          <td>{{ emp.email }}</td>
+          <td>{{ emp.department.name|default:"—" }}</td>
+          <td>{{ emp.role|default:"—" }}</td>
+          <td><span class="tag" style="background:#DCFCE7;color:#166534;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">{{ emp.get_employee_type_display }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center;color:var(--body-quiet-color);padding:20px;">{% translate "No employees found." %}</td></tr>
+        {% endfor %}
+        {% for mentor in extra_mentors %}
+        <tr>
+          <td class="action-checkbox"><input type="checkbox" disabled></td>
+          <th scope="row"><a href="{% url 'admin:erp_app_mentor_change' mentor.pk %}">{{ mentor.name }}</a></th>
+          <td>{{ mentor.email }}</td>
+          <td>{{ mentor.department.name|default:"—" }}</td>
+          <td>{{ mentor.specialization }}</td>
+          <td><span style="background:#EEF2FF;color:#4338CA;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">{% translate "Mentor" %}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if action_form and actions_on_bottom and cl.show_admin_actions %}{% admin_actions %}{% endif %}
+{% endblock %}
+
+{% block pagination %}
+  <p class="paginator">
+    {% if pagination_required %}
+      {% for i in page_range %}
+        {% paginator_number cl i %}
+      {% endfor %}
+    {% endif %}
+    {% with mentor_count=extra_mentors|length %}
+    {{ cl.result_count|add:mentor_count }} {% blocktranslate with model_name=cl.opts.verbose_name_plural %}{{ model_name }}{% endblocktranslate %}
+    {% endwith %}
+    {% if show_all_url %}<a href="{{ show_all_url }}" class="showall">{% translate 'Show all' %}</a>{% endif %}
+  </p>
+{% endblock %}

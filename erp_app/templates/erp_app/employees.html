@@ -18,35 +18,6 @@
     {% endfor %}
 </div>
 
-{% if current_type == 'mentor' %}
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px;">
-    {% for mentor in mentors %}
-    <div class="data-card" style="padding:0;overflow:hidden;">
-        <div style="background:linear-gradient(135deg,var(--auralith-blue),#2d6bb5);color:white;padding:25px;text-align:center;">
-            <div style="width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,0.2);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;">
-                {% with name=mentor.name %}{{ name|make_list|first }}{% endwith %}
-            </div>
-            <h3 style="margin:0;color:white;font-size:18px;">{{ mentor.name }}</h3>
-            <p style="opacity:0.8;font-size:13px;margin:4px 0 0;">{{ mentor.specialization }}</p>
-        </div>
-        <div style="padding:20px;">
-            <p style="font-size:13px;color:#64748B;margin-bottom:6px;"><i class="ph ph-envelope"></i> {{ mentor.email }}</p>
-            {% if mentor.bio %}
-            <p style="font-size:13px;color:#64748B;margin-bottom:15px;">{{ mentor.bio|truncatewords:30 }}</p>
-            {% endif %}
-            <div style="display:flex;gap:10px;align-items:center;">
-                <span style="background:#EEF2FF;color:#4338CA;padding:4px 12px;border-radius:20px;font-size:12px;"><i class="ph ph-book-open"></i> {{ mentor.course_count }} course(s)</span>
-            </div>
-        </div>
-        <div style="padding:15px 20px;border-top:1px solid #F1F5F9;display:flex;gap:8px;">
-            <a href="{% url 'admin:erp_app_mentor_change' mentor.id %}" class="btn-outline" style="text-decoration:none;font-size:12px;padding:8px 16px;display:inline-block;">Edit</a>
-        </div>
-    </div>
-    {% empty %}
-    <p style="color:#94a3b8;">No mentors found. <a href="{% url 'admin:erp_app_mentor_add' %}">Add one</a>.</p>
-    {% endfor %}
-</div>
-{% else %}
 <div class="data-card" style="overflow-x:auto;padding:0;">
     <table>
         <thead>
@@ -75,5 +46,4 @@
         </tbody>
     </table>
 </div>
-{% endif %}
 {% endblock %}

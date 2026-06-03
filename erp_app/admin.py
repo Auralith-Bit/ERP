@@ -13,7 +13,8 @@ class CourseEnrollmentInline(admin.TabularInline):
 
 @admin.register(Mentor)
 class MentorAdmin(admin.ModelAdmin):
-    list_display = ['name', 'email', 'specialization', 'course_count']
+    list_display = ['name', 'email', 'department', 'specialization', 'course_count']
+    list_filter = ['department']
     search_fields = ['name', 'email', 'specialization']
 
     def get_queryset(self, request):
@@ -141,6 +142,11 @@ class EmployeeAdmin(admin.ModelAdmin):
     list_display = ['name', 'email', 'department', 'role', 'employee_type']
     list_filter = ['employee_type', 'department']
     search_fields = ['name', 'email', 'role']
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['extra_mentors'] = Mentor.objects.annotate(course_count=Count('course')).all()
+        return super().changelist_view(request, extra_context)
 
 
 @admin.register(Project)
