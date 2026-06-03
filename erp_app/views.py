@@ -1,6 +1,8 @@
 import os
 import json
 import io
+import random
+import string
 import qrcode
 from functools import wraps
 from pathlib import Path
@@ -21,7 +23,7 @@ from django.template.loader import render_to_string
 from django.views.decorators.http import require_http_methods
 from django.core.mail import send_mail
 from django.utils.html import strip_tags
-from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate, CourseEnrollment, Payment
+from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate, CourseEnrollment, Payment, PasswordResetCode
 from .roles import (get_user_roles, has_role,
     SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF, STUDENT, INTERN,
     role_required, teaching_staff_required, normal_staff_required, staff_required)
@@ -158,10 +160,75 @@ def password_reset(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
     if request.method == 'POST':
-        email = request.POST.get('email')
-        messages.success(request, 'If an account exists for this email, password reset details have been sent.')
-        return redirect('login')
+        email = request.POST.get('email', '').strip()
+        if not User.objects.filter(email=email).exists():
+            messages.error(request, 'No account found with this email address.')
+            return render(request, 'erp_app/password_reset.html')
+        code = ''.join(random.choices(string.digits, k=6))
+        PasswordResetCode.objects.create(email=email, code=code)
+        subject = 'Password Reset Code — Auralith ERP'
+        html_message = render_to_string('erp_app/email/password_reset_code.html', {
+            'code': code,
+        })
+        plain_message = strip_tags(html_message)
+        try:
+            send_mail(subject, plain_message, None, [email], html_message=html_message)
+        except Exception:
+            messages.error(request, 'Failed to send reset code. Please try again.')
+            return render(request, 'erp_app/password_reset.html')
+        request.session['reset_email'] = email
+        messages.success(request, 'A 6-digit code has been sent to your email.')
+        return redirect('password_reset_verify')
     return render(request, 'erp_app/password_reset.html')
+
+
+def password_reset_verify(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    email = request.session.get('reset_email')
+    if not email:
+        return redirect('password_reset')
+    if request.method == 'POST':
+        code = request.POST.get('code', '').strip()
+        reset_code = PasswordResetCode.objects.filter(email=email, code=code, is_used=False).last()
+        if not reset_code or reset_code.is_expired():
+            messages.error(request, 'Invalid or expired code. Please request a new one.')
+            return redirect('password_reset')
+        request.session['reset_code_id'] = reset_code.id
+        return redirect('password_reset_confirm')
+    return render(request, 'erp_app/password_reset_verify.html')
+
+
+def password_reset_confirm(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    code_id = request.session.get('reset_code_id')
+    email = request.session.get('reset_email')
+    if not code_id or not email:
+        return redirect('password_reset')
+    reset_code = PasswordResetCode.objects.filter(id=code_id, email=email, is_used=False).last()
+    if not reset_code or reset_code.is_expired():
+        messages.error(request, 'Session expired. Please request a new code.')
+        return redirect('password_reset')
+    if request.method == 'POST':
+        password = request.POST.get('password', '')
+        password2 = request.POST.get('password2', '')
+        if not password or len(password) < 8:
+            messages.error(request, 'Password must be at least 8 characters.')
+            return render(request, 'erp_app/password_reset_confirm.html')
+        if password != password2:
+            messages.error(request, 'Passwords do not match.')
+            return render(request, 'erp_app/password_reset_confirm.html')
+        user = User.objects.get(email=email)
+        user.set_password(password)
+        user.save()
+        reset_code.is_used = True
+        reset_code.save()
+        del request.session['reset_email']
+        del request.session['reset_code_id']
+        messages.success(request, 'Password has been reset successfully. Please sign in.')
+        return redirect('login')
+    return render(request, 'erp_app/password_reset_confirm.html')
 
 
 @login_required

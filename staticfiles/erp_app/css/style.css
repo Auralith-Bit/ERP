@@ -272,7 +272,7 @@ td { padding: 15px 12px; font-size: 14px; border-bottom: 1px solid #F1F5F9; }
     gap: 10px;
     margin: 0 0 28px;
     padding: 20px 28px;
-    background: white;
+    background: rgba(255,255,255,0.93);
     border-radius: 12px;
     text-align: center;
 }
