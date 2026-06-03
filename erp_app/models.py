@@ -2,7 +2,7 @@ import os
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
-from datetime import datetime
+import datetime
 
 
 # ── Role Constants ──────────────────────────────────────────────
@@ -23,6 +23,7 @@ class Mentor(models.Model):
     specialization = models.CharField(max_length=200)
     bio = models.TextField(blank=True)
     department = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True, blank=True)
+    joined_date = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ['name']
@@ -296,7 +297,7 @@ class Employee(models.Model):
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     role = models.CharField(max_length=200, blank=True)
     employee_type = models.CharField(max_length=20, choices=EMPLOYEE_TYPES, default='staff')
-    joined_date = models.DateField(auto_now_add=True)
+    joined_date = models.DateField(default=datetime.date.today)
 
     class Meta:
         ordering = ['name']

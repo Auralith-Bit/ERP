@@ -15,6 +15,7 @@
           <th scope="col"><div class="text"><span>{% translate "Department" %}</span></div></th>
           <th scope="col"><div class="text"><span>{% translate "Role" %}</span></div></th>
           <th scope="col"><div class="text"><span>{% translate "Type" %}</span></div></th>
+          <th scope="col"><div class="text"><span>{% translate "Joined" %}</span></div></th>
         </tr>
       </thead>
       <tbody>
@@ -26,9 +27,10 @@
           <td>{{ emp.department.name|default:"—" }}</td>
           <td>{{ emp.role|default:"—" }}</td>
           <td><span class="tag" style="background:#DCFCE7;color:#166534;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">{{ emp.get_employee_type_display }}</span></td>
+          <td>{{ emp.joined_date|date:"M d, Y" }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" style="text-align:center;color:var(--body-quiet-color);padding:20px;">{% translate "No employees found." %}</td></tr>
+        <tr><td colspan="7" style="text-align:center;color:var(--body-quiet-color);padding:20px;">{% translate "No employees found." %}</td></tr>
         {% endfor %}
         {% for mentor in extra_mentors %}
         <tr>
@@ -38,6 +40,7 @@
           <td>{{ mentor.department.name|default:"—" }}</td>
           <td>{{ mentor.specialization }}</td>
           <td><span style="background:#EEF2FF;color:#4338CA;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">{% translate "Mentor" %}</span></td>
+          <td>{{ mentor.joined_date|date:"M d, Y"|default:"—" }}</td>
         </tr>
         {% endfor %}
       </tbody>

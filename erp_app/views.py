@@ -293,7 +293,7 @@ class _MentorRow:
         self.department = mentor.department
         self.role = mentor.specialization
         self.employee_type = 'mentor'
-        self.joined_date = None
+        self.joined_date = mentor.joined_date
     def get_employee_type_display(self):
         return 'Mentor'
 

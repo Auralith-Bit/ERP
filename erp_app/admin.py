@@ -13,7 +13,7 @@ class CourseEnrollmentInline(admin.TabularInline):
 
 @admin.register(Mentor)
 class MentorAdmin(admin.ModelAdmin):
-    list_display = ['name', 'email', 'department', 'specialization', 'course_count']
+    list_display = ['name', 'email', 'department', 'specialization', 'course_count', 'joined_date']
     list_filter = ['department']
     search_fields = ['name', 'email', 'specialization']
 
@@ -139,7 +139,7 @@ class PaymentAdmin(admin.ModelAdmin):
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
-    list_display = ['name', 'email', 'department', 'role', 'employee_type']
+    list_display = ['name', 'email', 'department', 'role', 'employee_type', 'joined_date']
     list_filter = ['employee_type', 'department']
     search_fields = ['name', 'email', 'role']
 
