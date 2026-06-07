@@ -17,5 +17,4 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'auralith_erp.settings')
 
 application = get_wsgi_application()
 application = WhiteNoise(application, root=settings.STATIC_ROOT)
-# Media files are served via S3 (or django serve view locally), no need for WhiteNoise
-# application.add_files(settings.MEDIA_ROOT, prefix='media/')
+application.add_files(settings.MEDIA_ROOT, prefix='media/')
