@@ -13,10 +13,10 @@
 </header>
 
 <div class="table-controls" style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
-    <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;width:100%;">
+    <form method="get" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;width:100%;" autocomplete="off">
         <div class="search-box" style="width:280px;">
             <i class="ph ph-magnifying-glass"></i>
-            <input type="text" name="q" placeholder="Search by number, student, or course..." value="{{ search_query }}">
+            <input type="text" name="q" placeholder="Search by number, student, or course..." value="{{ search_query }}" autocomplete="off">
         </div>
         <select name="type" onchange="this.form.submit()" style="padding:8px 12px;border:1px solid var(--panel-border);border-radius:8px;background:var(--surface);color:var(--text-dark);font-size:13px;">
             <option value="">All Types</option>

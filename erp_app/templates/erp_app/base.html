@@ -7,12 +7,20 @@
     <title>Auralith ERP | {% block title %}Dashboard{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'erp_app/css/style.css' %}">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('auralithThemeMode');
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
 </head>
 <body>
     <div class="app-container">
         <aside class="sidebar">
             <div class="brand">
-                <img src="{% static 'erp_app/images/AURALITH_logo.png' %}" alt="Auralith Bit Logo" class="sidebar-logo">
+                <img src="{% static 'erp_app/images/AURALITH_logo.png' %}" alt="Auralith Bit Logo" class="sidebar-logo" width="56" height="56">
                 <h2>AURALITH BIT</h2>
             </div>
             <nav>
@@ -65,12 +73,21 @@
         </aside>
         <main class="workspace">
             <header class="top-nav">
-                <form class="search-box" method="get" action="{% url 'search' %}">
+                <form class="search-box" method="get" action="{% url 'search' %}" autocomplete="off">
                     <button type="submit" style="background:none;border:none;color:inherit;cursor:pointer;padding:0;margin:0;display:flex;align-items:center;">
                         <i class="ph ph-magnifying-glass"></i>
                     </button>
-                    <input type="text" name="q" placeholder="Search students, mentors, or projects..." value="{{ request.GET.q|default_if_none:'' }}">
+                    <input type="text" name="q" id="globalSearch" placeholder="Search students, mentors, or projects..." value="{{ request.GET.q|default_if_none:'' }}" autocomplete="off">
                 </form>
+                <script>
+                    (function() {
+                        var input = document.getElementById('globalSearch');
+                        if (input) {
+                            var isSearch = window.location.pathname.indexOf('/search/') !== -1;
+                            if (!isSearch) { input.value = ''; }
+                        }
+                    })();
+                </script>
                 <div class="user-profile" style="position:relative;display:flex;align-items:center;gap:10px;">
                     <button id="notificationToggle" type="button" style="background:none;border:none;color:inherit;cursor:pointer;position:relative;padding:0;font-size:18px;">
                         <i class="ph ph-bell"></i>
@@ -181,26 +198,38 @@
             }
         }
 
+        function cleanupSearchInput() {
+            var searchInput = document.getElementById('globalSearch');
+            if (searchInput) {
+                var isSearchPage = window.location.pathname.indexOf('/search/') !== -1;
+                if (!isSearchPage) {
+                    searchInput.value = '';
+                }
+            }
+        }
+
         function applyTheme(mode) {
-            const bodyClass = document.body.classList;
-            const themeToggle = document.getElementById('themeToggle');
+            var root = document.documentElement;
+            var themeToggle = document.getElementById('themeToggle');
             if (mode === 'dark') {
-                bodyClass.add('dark-theme');
+                root.classList.add('dark-theme');
                 if (themeToggle) themeToggle.innerHTML = '<i class="ph ph-sun"></i>';
             } else {
-                bodyClass.remove('dark-theme');
+                root.classList.remove('dark-theme');
                 if (themeToggle) themeToggle.innerHTML = '<i class="ph ph-moon-stars"></i>';
             }
             localStorage.setItem('auralithThemeMode', mode);
         }
 
-        const storedTheme = localStorage.getItem('auralithThemeMode') || 'light';
+        var storedTheme = localStorage.getItem('auralithThemeMode') || 'light';
         applyTheme(storedTheme);
 
-        const themeButton = document.getElementById('themeToggle');
+        cleanupSearchInput();
+
+        var themeButton = document.getElementById('themeToggle');
         if (themeButton) {
             themeButton.addEventListener('click', function() {
-                const nextTheme = document.body.classList.contains('dark-theme') ? 'light' : 'dark';
+                var nextTheme = document.documentElement.classList.contains('dark-theme') ? 'light' : 'dark';
                 applyTheme(nextTheme);
             });
         }
@@ -231,6 +260,20 @@
 
         refreshNotifications();
         setInterval(refreshNotifications, 15000);
+
+        window.addEventListener('pageshow', function() {
+            var input = document.getElementById('globalSearch');
+            if (input) {
+                var isSearch = window.location.pathname.indexOf('/search/') !== -1;
+                if (!isSearch) { input.value = ''; }
+            }
+            var theme = localStorage.getItem('auralithThemeMode');
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            } else {
+                document.documentElement.classList.remove('dark-theme');
+            }
+        });
 
         document.addEventListener('wheel', function(e) {
             if (e.target.type === 'number') e.preventDefault();

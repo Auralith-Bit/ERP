@@ -7,8 +7,23 @@
 <h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
 {% endblock %}
 
+{% block dark-mode-vars %}
+    <link rel="stylesheet" href="{% static "admin/css/dark_mode.css" %}">
+{% endblock %}
+
 {% block extrahead %}
     {{ block.super }}
     <link rel="stylesheet" href="{% static 'erp_app/css/admin-theme.css' %}">
+    <script>
+        (function() {
+            var mode = localStorage.getItem('adminThemeMode');
+            if (mode === 'dark') {
+                document.documentElement.classList.add('dark-mode');
+                document.documentElement.dataset.theme = 'dark';
+            } else {
+                document.documentElement.dataset.theme = mode === 'light' ? 'light' : 'auto';
+            }
+        })();
+    </script>
     <script src="{% static 'erp_app/js/admin-theme.js' %}"></script>
 {% endblock %}

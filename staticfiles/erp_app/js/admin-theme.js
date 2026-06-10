@@ -17,24 +17,26 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.appendChild(button);
 
     function setAdminTheme(mode) {
-        const bodyClass = document.body.classList;
+        const root = document.documentElement;
         if (mode === 'dark') {
-            bodyClass.add('dark-mode');
+            root.classList.add('dark-mode');
+            root.dataset.theme = 'dark';
             button.textContent = 'Light Mode';
             localStorage.setItem(storageKey, 'dark');
         } else {
-            bodyClass.remove('dark-mode');
+            root.classList.remove('dark-mode');
+            root.dataset.theme = 'light';
             button.textContent = 'Dark Mode';
             localStorage.setItem(storageKey, 'light');
         }
     }
 
     button.addEventListener('click', function() {
-        const nextMode = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+        const nextMode = document.documentElement.classList.contains('dark-mode') ? 'light' : 'dark';
         setAdminTheme(nextMode);
     });
 
-    setAdminTheme(localStorage.getItem(storageKey) || 'light');
+    button.textContent = document.documentElement.classList.contains('dark-mode') ? 'Light Mode' : 'Dark Mode';
 
     document.addEventListener('wheel', function(e) {
         if (e.target.type === 'number') e.preventDefault();

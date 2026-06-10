@@ -1,46 +1,42 @@
-html, body {
-    transition: background 0.2s ease, color 0.2s ease;
-}
-
-body.dark-mode {
+html.dark-mode body {
     background: #0b1220 !important;
     color: #e2e8f0 !important;
 }
 
-body.dark-mode .container,
-body.dark-mode .module,
-body.dark-mode .breadcrumbs,
-body.dark-mode #header,
-body.dark-mode #user-tools,
-body.dark-mode .submit-row,
-body.dark-mode .form-row {
+html.dark-mode body .container,
+html.dark-mode body .module,
+html.dark-mode body .breadcrumbs,
+html.dark-mode body #header,
+html.dark-mode body #user-tools,
+html.dark-mode body .submit-row,
+html.dark-mode body .form-row {
     background: #111827 !important;
     color: #e2e8f0 !important;
 }
 
-body.dark-mode a,
-body.dark-mode .breadcrumbs a,
-body.dark-mode .inlineRelated th,
-body.dark-mode .inline-related h2,
-body.dark-mode .model-name,
-body.dark-mode .submit-row a {
+html.dark-mode body a,
+html.dark-mode body .breadcrumbs a,
+html.dark-mode body .inlineRelated th,
+html.dark-mode body .inline-related h2,
+html.dark-mode body .model-name,
+html.dark-mode body .submit-row a {
     color: #93c5fd !important;
 }
 
-body.dark-mode .grp-module,
-body.dark-mode .module caption {
+html.dark-mode body .grp-module,
+html.dark-mode body .module caption {
     background: #111827 !important;
 }
 
-body.dark-mode .button,
-body.dark-mode input[type="submit"],
-body.dark-mode .deletelink,
-body.dark-mode .filter-choice input {
+html.dark-mode body .button,
+html.dark-mode body input[type="submit"],
+html.dark-mode body .deletelink,
+html.dark-mode body .filter-choice input {
     background: #1f2937 !important;
     color: #e2e8f0 !important;
 }
 
-body.dark-mode #adminThemeToggle {
+html.dark-mode body #adminThemeToggle {
     background: #f8fafc !important;
     color: #0f172a !important;
 }
