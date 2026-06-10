@@ -19,6 +19,7 @@ urlpatterns = [
     path('integration/', views.integration, name='integration'),
     path('id-generation/', views.id_generation, name='id_generation'),
     path('budget-fees/', views.budget_fees, name='budget_fees'),
+    path('attendance/', views.attendance, name='attendance'),
     path('workbench/', views.workbench, name='workbench'),
     path('search/', views.search, name='search'),
     path('workbench/<str:app_label>/<str:model_name>/', views.workbench_table, name='workbench_table'),

@@ -3,7 +3,7 @@ from django.db.models import Count
 from django.template.loader import render_to_string
 from django.core.mail import send_mail
 from django.utils.html import format_html, strip_tags
-from .models import Mentor, Department, Course, Student, CourseEnrollment, Employee, Project, Notification, IDCard, Certificate, Payment
+from .models import Mentor, Department, Course, Student, CourseEnrollment, Employee, Project, Notification, IDCard, Certificate, Payment, Attendance
 
 
 class CourseEnrollmentInline(admin.TabularInline):
@@ -181,3 +181,11 @@ class CertificateAdmin(admin.ModelAdmin):
         updated = queryset.update(status='issued')
         self.message_user(request, f'{updated} certificate(s) re-issued.')
     reissue_certificates.short_description = 'Re-issue selected certificates'
+
+
+@admin.register(Attendance)
+class AttendanceAdmin(admin.ModelAdmin):
+    list_display = ['student', 'course', 'date', 'status', 'marked_by']
+    list_filter = ['date', 'status', 'course']
+    search_fields = ['student__name', 'course__name']
+    date_hierarchy = 'date'

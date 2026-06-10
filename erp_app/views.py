@@ -23,7 +23,7 @@ from django.template.loader import render_to_string
 from django.views.decorators.http import require_http_methods
 from django.core.mail import send_mail
 from django.utils.html import strip_tags
-from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate, CourseEnrollment, Payment, PasswordResetCode
+from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate, CourseEnrollment, Payment, PasswordResetCode, Attendance
 from .roles import (get_user_roles, has_role,
     SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF, STUDENT, INTERN,
     role_required, teaching_staff_required, normal_staff_required, staff_required)
@@ -427,6 +427,71 @@ def budget_fees(request):
         'is_admin': has_role(request.user, SUPER_ADMIN, NORMAL_STAFF),
     }
     return render(request, 'erp_app/budget_fees.html', context)
+
+@login_required
+def attendance(request):
+    if not has_role(request.user, SUPER_ADMIN, TEACHING_STAFF):
+        return redirect('dashboard')
+
+    today = datetime.now().date()
+    courses = Course.objects.all()
+    selected_course_id = request.GET.get('course_id') or request.POST.get('course_id')
+    selected_date = request.GET.get('date') or request.POST.get('date') or str(today)
+
+    enrollments = []
+    existing_records = {}
+
+    if selected_course_id:
+        enrollments = CourseEnrollment.objects.filter(
+            course_id=selected_course_id,
+            status='active'
+        ).select_related('student', 'course')
+
+        existing = Attendance.objects.filter(
+            course_id=selected_course_id,
+            date=selected_date
+        )
+        for rec in existing:
+            existing_records[rec.student_id] = rec.status
+
+    if request.method == 'POST':
+        course_id = request.POST.get('course_id')
+        att_date = request.POST.get('date')
+
+        if course_id and att_date:
+            active_enrollments = CourseEnrollment.objects.filter(
+                course_id=course_id,
+                status='active'
+            ).select_related('student')
+
+            saved = 0
+            for enrollment in active_enrollments:
+                sid = str(enrollment.student_id)
+                status = request.POST.get(f'status_{sid}')
+                if status in ('P', 'A', 'L'):
+                    Attendance.objects.update_or_create(
+                        student_id=enrollment.student_id,
+                        course_id=course_id,
+                        date=att_date,
+                        defaults={
+                            'status': status,
+                            'marked_by': request.user,
+                        }
+                    )
+                    saved += 1
+            if saved:
+                messages.success(request, f'Attendance saved for {saved} student(s).')
+            return redirect(f'{reverse("attendance")}?course_id={course_id}&date={att_date}')
+
+    context = {
+        'courses': courses,
+        'selected_course_id': int(selected_course_id) if selected_course_id else None,
+        'selected_date': selected_date,
+        'enrollments': enrollments,
+        'existing_records': existing_records,
+        'is_admin': has_role(request.user, SUPER_ADMIN, TEACHING_STAFF),
+    }
+    return render(request, 'erp_app/attendance.html', context)
 
 @login_required
 def search(request):

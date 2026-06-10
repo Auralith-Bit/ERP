@@ -65,6 +65,9 @@
                 {% if is_normal_staff or is_super_admin or is_teaching_staff %}
                 <a href="{% url 'budget_fees' %}" {% if request.resolver_match.url_name == 'budget_fees' %}class="active"{% endif %}><i class="ph ph-money"></i> Budget & Fees</a>
                 {% endif %}
+                {% if is_teaching_staff or is_super_admin %}
+                <a href="{% url 'attendance' %}" {% if request.resolver_match.url_name == 'attendance' %}class="active"{% endif %}><i class="ph ph-clipboard-text"></i> Attendance</a>
+                {% endif %}
                 {% if is_super_admin %}
                 <p class="nav-label">System</p>
                 <a href="{% url 'workbench' %}" {% if request.resolver_match.url_name == 'workbench' %}class="active"{% endif %}><i class="ph ph-database"></i> DB Workbench</a>

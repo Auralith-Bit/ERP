@@ -354,3 +354,24 @@ class Project(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Attendance(models.Model):
+    ATTENDANCE_CHOICES = [
+        ('P', 'Present'),
+        ('A', 'Absent'),
+        ('L', 'Late'),
+    ]
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attendances')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='attendances')
+    date = models.DateField()
+    status = models.CharField(max_length=1, choices=ATTENDANCE_CHOICES)
+    marked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['student', 'course', 'date']
+        ordering = ['-date', 'student__name']
+
+    def __str__(self):
+        return f"{self.student.name} - {self.course.name} - {self.date} - {self.get_status_display()}"
