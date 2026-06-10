@@ -1,6 +1,7 @@
 import os
 import json
 import io
+import logging
 import random
 import string
 import qrcode
@@ -24,6 +25,7 @@ from django.views.decorators.http import require_http_methods
 from django.core.mail import send_mail
 from django.utils.html import strip_tags
 from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate, CourseEnrollment, Payment, PasswordResetCode, Attendance
+logger = logging.getLogger(__name__)
 from .roles import (get_user_roles, has_role,
     SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF, STUDENT, INTERN,
     role_required, teaching_staff_required, normal_staff_required, staff_required)
@@ -173,7 +175,8 @@ def password_reset(request):
         plain_message = strip_tags(html_message)
         try:
             send_mail(subject, plain_message, None, [email], html_message=html_message)
-        except Exception:
+        except Exception as e:
+            logger.exception('Password reset email send failed: %s', e)
             messages.error(request, 'Failed to send reset code. Please try again.')
             return render(request, 'erp_app/password_reset.html')
         request.session['reset_email'] = email

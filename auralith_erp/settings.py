@@ -130,9 +130,8 @@ EMAIL_BACKEND = os.environ.get(
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'kimt41121@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'vdws tdvv yert eftf')
 DEFAULT_FROM_EMAIL = os.environ.get(
-    'DEFAULT_FROM_EMAIL',
-    f'Auralith ERP <{EMAIL_HOST_USER}>' if EMAIL_HOST_USER else 'Auralith ERP <noreply@example.com>',
+    'DEFAULT_FROM_EMAIL', 'Auralith ERP <kimt41121@gmail.com>',
 )
