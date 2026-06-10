@@ -1154,15 +1154,15 @@ def send_payment_receipt(request, enrollment_id):
     )
     payments = enrollment.payments.all()
 
-    subject = f'Payment Receipt — {enrollment.course.name}'
-    html_message = render_to_string('erp_app/email/payment_receipt.html', {
-        'enrollment': enrollment,
-        'payments': payments,
-    })
-    plain_message = strip_tags(html_message)
-    recipient = enrollment.student.email
-
     try:
+        subject = f'Payment Receipt — {enrollment.course.name}'
+        html_message = render_to_string('erp_app/email/payment_receipt.html', {
+            'enrollment': enrollment,
+            'payments': payments,
+        })
+        plain_message = strip_tags(html_message)
+        recipient = enrollment.student.email
+
         send_mail(subject, plain_message, None, [recipient], html_message=html_message)
         Notification.objects.create(
             title='Receipt Sent',
@@ -1171,6 +1171,7 @@ def send_payment_receipt(request, enrollment_id):
         )
         messages.success(request, f'Receipt sent to {enrollment.student.email}')
     except Exception as e:
+        logger.exception('Failed to send payment receipt for enrollment %s: %s', enrollment_id, e)
         messages.error(request, f'Failed to send receipt: {e}')
 
     return redirect(request.META.get('HTTP_REFERER', 'dashboard'))

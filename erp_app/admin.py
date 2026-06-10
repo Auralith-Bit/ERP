@@ -109,14 +109,15 @@ class CourseEnrollmentAdmin(admin.ModelAdmin):
     def send_receipt(self, request, queryset):
         sent = 0
         for enrollment in queryset.select_related('student', 'course').prefetch_related('payments'):
-            payments = enrollment.payments.all()
-            subject = f'Payment Receipt — {enrollment.course.name}'
-            html_message = render_to_string('erp_app/email/payment_receipt.html', {
-                'enrollment': enrollment,
-                'payments': payments,
-            })
-            plain_message = strip_tags(html_message)
             try:
+                payments = enrollment.payments.all()
+                subject = f'Payment Receipt — {enrollment.course.name}'
+                html_message = render_to_string('erp_app/email/payment_receipt.html', {
+                    'enrollment': enrollment,
+                    'payments': payments,
+                })
+                plain_message = strip_tags(html_message)
+
                 send_mail(subject, plain_message, None, [enrollment.student.email], html_message=html_message)
                 Notification.objects.create(
                     title='Receipt Sent',
