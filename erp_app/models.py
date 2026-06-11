@@ -364,7 +364,7 @@ class Attendance(models.Model):
     ]
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attendances')
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='attendances')
-    date = models.DateField()
+    date = models.CharField(max_length=10)
     status = models.CharField(max_length=1, choices=ATTENDANCE_CHOICES)
     marked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

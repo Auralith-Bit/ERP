@@ -1,6 +1,9 @@
 {% extends 'erp_app/base.html' %}
 {% load erp_extras %}
 {% block title %}Attendance Management{% endblock %}
+{% block extra_head %}
+<link href="https://nepalidatepicker.sajanmaharjan.com.np/v5/nepali.datepicker/css/nepali.datepicker.v5.0.6.min.css" rel="stylesheet" type="text/css"/>
+{% endblock %}
 {% block content %}
 <header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
     <div class="header-info">
@@ -16,7 +19,12 @@
         <option value="{{ course.id }}" {% if selected_course_id == course.id %}selected{% endif %}>{{ course.name }}</option>
         {% endfor %}
     </select>
-    <input type="date" name="date" value="{{ selected_date }}" onchange="this.form.submit()" style="padding:8px 12px;border:1px solid var(--panel-border);border-radius:8px;background:var(--surface);color:var(--text-dark);font-size:13px;">
+    <div style="display:flex;gap:0;align-items:center;">
+        <input type="text" name="date" id="attendance-date" value="{{ selected_date }}" placeholder="YYYY-MM-DD (Nepali)" pattern="\d{4}-\d{2}-\d{2}" title="Enter Nepali date in YYYY-MM-DD format (e.g., 2082-11-25)" onchange="this.form.submit()" style="padding:8px 12px;border:1px solid var(--panel-border);border-right:none;border-radius:8px 0 0 8px;background:var(--surface);color:var(--text-dark);font-size:13px;">
+        <button type="button" id="calendar-btn" style="padding:8px 10px;border:1px solid var(--panel-border);border-radius:0 8px 8px 0;background:var(--surface);color:var(--text-muted);cursor:pointer;font-size:16px;display:flex;align-items:center;line-height:1;" title="Pick Nepali date">
+            <i class="ph ph-calendar"></i>
+        </button>
+    </div>
 </form>
 
 {% if selected_course_id and enrollments %}
@@ -127,6 +135,31 @@ document.addEventListener('click', function(e) {
                     l.style.color = '#64748B';
                     l.style.borderColor = 'transparent';
                 }
+            });
+        }
+    }
+});
+</script>
+{% endblock %}
+{% block extra_js %}
+<script src="https://nepalidatepicker.sajanmaharjan.com.np/v5/nepali.datepicker/js/nepali.datepicker.v5.0.6.min.js" type="text/javascript"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var input = document.getElementById('attendance-date');
+    var btn = document.getElementById('calendar-btn');
+    if (input) {
+        input.NepaliDatePicker({
+            dateFormat: 'YYYY-MM-DD',
+            language: 'english',
+            miniEnglishDates: true,
+            onSelect: function() {
+                input.form.submit();
+            }
+        });
+        if (btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                input.focus();
             });
         }
     }

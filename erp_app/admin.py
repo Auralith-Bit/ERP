@@ -189,4 +189,3 @@ class AttendanceAdmin(admin.ModelAdmin):
     list_display = ['student', 'course', 'date', 'status', 'marked_by']
     list_filter = ['date', 'status', 'course']
     search_fields = ['student__name', 'course__name']
-    date_hierarchy = 'date'

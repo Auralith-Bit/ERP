@@ -8,7 +8,8 @@ import qrcode
 from functools import wraps
 from pathlib import Path
 from base64 import b64encode
-from datetime import datetime
+from datetime import datetime, date as EnglishDate
+from .nepali_utils import today_bs
 from PIL import Image
 from django.conf import settings
 from django.db.models import Count, Sum, Q
@@ -436,10 +437,9 @@ def attendance(request):
     if not has_role(request.user, SUPER_ADMIN, TEACHING_STAFF):
         return redirect('dashboard')
 
-    today = datetime.now().date()
     courses = Course.objects.all()
     selected_course_id = request.GET.get('course_id') or request.POST.get('course_id')
-    selected_date = request.GET.get('date') or request.POST.get('date') or str(today)
+    selected_date = request.GET.get('date') or request.POST.get('date') or today_bs()
 
     enrollments = []
     existing_records = {}

@@ -7,6 +7,7 @@
     <title>Auralith ERP | {% block title %}Dashboard{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'erp_app/css/style.css' %}">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    {% block extra_head %}{% endblock %}
     <script>
         (function() {
             var theme = localStorage.getItem('auralithThemeMode');
@@ -282,5 +283,6 @@
             if (e.target.type === 'number') e.preventDefault();
         }, { passive: false });
     </script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
