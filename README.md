@@ -16,15 +16,9 @@ python manage.py runserver
 
 Browse to **http://localhost:8000**
 
-### Production Build (Render)
+### Environment Variables
 
-A `build.sh` script is included for Render's build step:
-
-```bash
-./build.sh   # pip install → collectstatic → migrate
-```
-
-Set the following environment variables in your Render dashboard:
+Set the following environment variables in production or local dev:
 
 | Variable | Required | Notes |
 |----------|----------|-------|
@@ -36,9 +30,17 @@ Set the following environment variables in your Render dashboard:
 | `EMAIL_HOST_PASSWORD` | No | Gmail app password |
 | `STAFF_REGISTRATION_CODE` | No | Defaults to `AURALITH2024` |
 
+### Production Build (Render)
+
+A `build.sh` script is included for Render's build step:
+
+```bash
+./build.sh   # pip install → collectstatic → migrate
+```
+
 ### Email Setup
 
-Payment receipts are sent through Gmail SMTP. Set these environment variables before running the server:
+Payment receipts and password reset codes are sent through Gmail SMTP. Set these environment variables before running the server:
 
 ```bash
 EMAIL_HOST_USER=your-main-gmail@gmail.com
@@ -66,6 +68,32 @@ For Gmail, use an **App Password** instead of your normal Gmail password.
 - **Staff register** — same validation improvements with password length check
 - **Username validation** — username must not start with a digit (enforced both client-side and server-side across all registration and login forms)
 - Error messages displayed on the same page without losing form data
+
+### Attendance Management
+- Mark student attendance per course with Nepali (BS) date picker (Nepali DatePicker CDN)
+- Status options: Present (P), Absent (A), Late (L) with bulk action buttons (All Present/Absent/Late)
+- Restricted to Super Admin and Teaching Staff roles
+- Attendance data stored with Nepali BS dates using `nepali-datetime` library
+- Unique constraint: one record per student per course per date
+
+### Nepali Calendar Integration
+- Full AD-to-BS and BS-to-AD date conversion utilities in `erp_app/nepali_utils.py`
+- `today_bs()`, `ad_to_bs()`, `bs_to_ad()`, `validate_bs_date()` helper functions
+- Attendance dates stored and displayed in Nepali Bikram Sambat (BS) format
+
+### Payment System
+- **Payment model** tracks per-enrollment payments with amount, date, transaction ID
+- **Fee tracking** on each CourseEnrollment: `total_fee`, `total_paid()`, `pending_fee()`, `payment_status_text()`
+- **My Courses page** (`/my-courses/`) — students view enrolled courses with fee breakdown, payment status badges (Completed/Partial/Pending), and expandable payment history
+- **Send Receipt** — staff can email a styled payment receipt to students via Gmail SMTP
+- **Bulk send receipt** admin action on CourseEnrollment admin
+
+### Password Reset
+- Fully functional 3-step password reset flow (not UI-only):
+  1. Enter email at `/password-reset/` → generates 6-digit code, sends via email
+  2. Verify code at `/password-reset/verify/` — 10-minute expiry, session-based
+  3. Set new password at `/password-reset/confirm/` — min 8 chars
+- Styled email template with Auralith branding
 
 ### Course Management
 - Course catalog with mentor assignments, category color-coding, enrollment tracking
@@ -106,6 +134,7 @@ For Gmail, use an **App Password** instead of your normal Gmail password.
 - Bell icon with unread count badge in navigation bar
 - Polls `/api/notifications/` every 15 seconds via `fetch()`
 - Seen/unseen tracking using `localStorage`
+- Timestamp displayed on each notification
 
 ### Global Search
 - Searches across Courses, Mentors, Students, Projects, Employees, and Departments
@@ -154,19 +183,21 @@ AURALITH erp/
 │   └── wsgi.py / asgi.py      # WSGI/ASGI entry points
 │
 ├── erp_app/                   # Main application
-│   ├── models.py              # 9 models (340 lines)
-│   ├── views.py               # 25+ view functions (1031 lines)
-│   ├── urls.py                # 31 URL patterns
+│   ├── models.py              # 13 models (377 lines)
+│   ├── views.py               # 33+ view functions (1177 lines)
+│   ├── urls.py                # 42 URL patterns
 │   ├── admin.py               # Admin registrations for all models
 │   ├── roles.py               # RBAC: constants, decorators, helpers
 │   ├── signals.py             # Auto-group assignment, auto-certificates
 │   ├── context_processors.py  # Sidebar stats + user globals
+│   ├── nepali_utils.py        # AD ↔ BS date conversion utilities
 │   ├── templatetags/
-│   │   └── erp_extras.py      # Custom template filter (get_attr)
+│   │   └── erp_extras.py      # Custom template filters (get_attr, get_item)
 │   │
 │   ├── templates/
 │   │   ├── admin/             # Admin overrides (theme, login)
-│   │   └── erp_app/           # 24 application templates
+│   │   └── erp_app/           # 29 application templates
+│   │       └── email/         # Email templates (receipt, password reset)
 │   │
 │   └── static/
 │       └── erp_app/
@@ -186,7 +217,7 @@ AURALITH erp/
 
 ---
 
-## Database Models (9 total)
+## Database Models (13 total)
 
 ### Mentor
 | Field | Type | Notes |
@@ -195,6 +226,8 @@ AURALITH erp/
 | `email` | EmailField | unique |
 | `specialization` | CharField(200) | |
 | `bio` | TextField | blank |
+| `department` | ForeignKey(Department) | nullable |
+| `joined_date` | DateField | nullable |
 
 ### Department
 | Field | Type | Notes |
@@ -210,9 +243,11 @@ AURALITH erp/
 | `category` | CharField(50) | development, design, qa, marketing |
 | `duration_weeks` | PositiveIntegerField | default=8 |
 | `status` | CharField(20) | live, upcoming, enrollment, completed |
+| `description` | TextField | blank |
 | `syllabus` | FileField | uploads to syllabi/ |
 | `students_count` | PositiveIntegerField | default=0 |
 | `completion_percent` | PositiveIntegerField | default=0 |
+| `created_at` | DateTimeField | auto_now_add |
 
 ### Student
 | Field | Type | Notes |
@@ -221,6 +256,7 @@ AURALITH erp/
 | `name` | CharField(200) | |
 | `email` | EmailField | unique |
 | `phone` | CharField(20) | blank |
+| `enrolled_date` | DateField | auto_now_add |
 | `is_intern` | BooleanField | default=False |
 
 ### CourseEnrollment
@@ -228,8 +264,12 @@ AURALITH erp/
 |-------|------|-------|
 | `student` | ForeignKey(Student) | |
 | `course` | ForeignKey(Course) | |
+| `total_fee` | DecimalField(10,2) | default=0 |
+| `enrolled_date` | DateField | auto_now_add |
 | `status` | CharField(20) | active, completed, dropped |
 | **Meta:** | `unique_together` | (student, course) |
+
+**Methods:** `total_paid()`, `pending_fee()`, `is_fully_paid()`, `payment_status_text()` — computed from related Payment records.
 
 **Signal:** When status → `completed`, auto-creates a Certificate.
 
@@ -262,6 +302,9 @@ AURALITH erp/
 | `student` | ForeignKey(Student) | nullable |
 | `employee` | ForeignKey(Employee) | nullable |
 | `file` | FileField | uploads to id_cards/ |
+| `uploaded_at` | DateTimeField | auto_now_add |
+
+**Property:** `owner_name` — returns the student/employee name.
 
 ### Employee
 | Field | Type | Notes |
@@ -271,6 +314,7 @@ AURALITH erp/
 | `department` | ForeignKey(Department) | nullable |
 | `role` | CharField(200) | free text |
 | `employee_type` | CharField(20) | intern, staff, mentor, admin |
+| `joined_date` | DateField | default=today |
 
 ### Notification
 | Field | Type | Notes |
@@ -289,6 +333,35 @@ AURALITH erp/
 | `status` | CharField(20) | in_progress, completed, on_hold, cancelled |
 | `progress_percentage` | PositiveIntegerField | default=0 |
 | `budget` | DecimalField(10,2) | default=0 |
+| `start_date` | DateField | auto_now_add |
+
+### Payment
+| Field | Type | Notes |
+|-------|------|-------|
+| `enrollment` | ForeignKey(CourseEnrollment) | related_name='payments' |
+| `amount` | DecimalField(10,2) | |
+| `payment_date` | DateTimeField | auto_now_add |
+| `transaction_id` | CharField(100) | blank |
+| `remarks` | TextField | blank |
+
+### PasswordResetCode
+| Field | Type | Notes |
+|-------|------|-------|
+| `email` | EmailField | |
+| `code` | CharField(6) | 6-digit code |
+| `created_at` | DateTimeField | auto_now_add |
+| `is_used` | BooleanField | default=False |
+| **Method:** | `is_expired()` | True if >600 seconds old |
+
+### Attendance
+| Field | Type | Notes |
+|-------|------|-------|
+| `student` | ForeignKey(Student) | related_name='attendances' |
+| `course` | ForeignKey(Course) | related_name='attendances' |
+| `date` | CharField(10) | Nepali BS date (e.g. 2082-11-25) |
+| `status` | CharField(1) | P=Present, A=Absent, L=Late |
+| `marked_by` | ForeignKey(User) | nullable |
+| **Meta:** | `unique_together` | (student, course, date) |
 
 ---
 
@@ -315,6 +388,8 @@ AURALITH erp/
 | IDCard | CRUD | — | CRUD | — | — |
 | Project | CRUD | — | CRUD | — | — |
 | Notification | CRUD | Add/View | Add/View | — | — |
+| Attendance | CRUD | CRUD | — | — | — |
+| Payment | View | View | View | View | View |
 
 ### Decorators (in `erp_app/roles.py`)
 
@@ -337,7 +412,9 @@ AURALITH erp/
 | `/logout/` | `logout_view` | Logout and redirect |
 | `/register/` | `register_view` | Student self-registration |
 | `/register/staff/` | `staff_register_view` | Staff registration (code-gated) |
-| `/password-reset/` | `password_reset` | Password reset form (UI-only) |
+| `/password-reset/` | `password_reset` | Enter email to receive 6-digit reset code |
+| `/password-reset/verify/` | `password_reset_verify` | Verify 6-digit code (10-min expiry) |
+| `/password-reset/confirm/` | `password_reset_confirm` | Set new password after verification |
 
 ### Main Pages
 | Route | View | Description |
@@ -348,7 +425,19 @@ AURALITH erp/
 | `/mentors/` | `mentors` | Mentor profile cards |
 | `/employees/` | `employees` | Filterable employee table |
 | `/departments/` | `departments` | Department cards |
+| `/attendance/` | `attendance` | Mark student attendance (staff only) |
 | `/integration/` | `integration` | Service connection cards |
+
+### Student Portal
+| Route | View | Description |
+|-------|------|-------------|
+| `/my-courses/` | `my_courses` | Enrolled courses with fee breakdown |
+
+### Finance
+| Route | View | Description |
+|-------|------|-------------|
+| `/budget-fees/` | `budget_fees` | Fee management dashboard |
+| `/send-receipt/&lt;enrollment_id&gt;/` | `send_payment_receipt` | Send payment receipt email |
 
 ### Certificates
 | Route | View | Description |
@@ -382,7 +471,6 @@ AURALITH erp/
 | `/search/` | `search` | Global search across 6 entities |
 | `/workbench/` | `workbench` | Database model overview |
 | `/workbench/&lt;app&gt;/&lt;model&gt;/` | `workbench_table` | Dynamic table browser |
-| `/budget-fees/` | `budget_fees` | Fee management dashboard |
 | `/promote-intern/&lt;student_id&gt;/` | `promote_to_intern` | Promote student to intern |
 
 ---
@@ -416,10 +504,13 @@ Additionally, the `register_view` directly assigns the `student` group to newly 
 
 ## Admin Interface
 
-All 9 models registered in `admin.py` with `list_display`, `list_filter`, `search_fields`:
+All 13 models registered in `admin.py` with `list_display`, `list_filter`, `search_fields`:
 
 - **CourseEnrollmentInline** on Course admin
+- **CourseEnrollmentAdmin** — payment columns (`total_fee`, `total_paid`, `pending_fee`, `payment_status` color-coded), bulk "Send Receipt" action
 - **CertificateAdmin** — `fieldsets` grouping, custom actions (revoke, reissue), search by number/student
+- **PaymentAdmin** — filter by date, search by student/course/transaction
+- **AttendanceAdmin** — filter by date/status/course, search by student/course
 - Admin login page overridden with password show/hide toggle
 - Admin base overridden with dark mode toggle
 
@@ -444,6 +535,7 @@ whitenoise              # Static file serving (production)
 psycopg2-binary         # PostgreSQL adapter (production)
 dj-database-url         # Parse DATABASE_URL into Django config
 qrcode[pil]>=7.0        # QR code generation (with Pillow)
+nepali-datetime         # Nepali BS date conversion utilities
 ```
 
 ---
@@ -463,3 +555,29 @@ Then visit `/admin/` to manage all models.
 Set via the `STAFF_REGISTRATION_CODE` environment variable (defaults to `AURALITH2024` in `settings.py`).
 
 Required when registering a new staff account at `/register/staff/`.
+
+---
+
+## Nepali Calendar (Bikram Sambat) Utilities
+
+`erp_app/nepali_utils.py` provides date conversion helpers using the `nepali-datetime` library:
+
+| Function | Description |
+|----------|-------------|
+| `ad_to_bs(ad_date)` | Converts Gregorian date to Nepali BS string (`YYYY-MM-DD`) |
+| `bs_to_ad(bs_date_str)` | Converts Nepali BS string back to Gregorian date |
+| `today_bs()` | Returns today's date as Nepali BS string |
+| `validate_bs_date(bs_date_str)` | Validates a Nepali BS date string |
+
+Used by the Attendance system to store and display dates in Nepali BS format.
+
+---
+
+## Custom Template Tags
+
+`erp_app/templatetags/erp_extras.py` provides:
+
+| Filter | Usage | Description |
+|--------|-------|-------------|
+| `get_attr` | `{{ obj\|get_attr:"field_name" }}` | Retrieve an attribute from a model instance |
+| `get_item` | `{{ dict\|get_item:key }}` | Retrieve a dictionary value by key |
