@@ -51,14 +51,6 @@ For Gmail, use an **App Password** instead of your normal Gmail password.
 
 > Credentials default to empty in `settings.py`. Never commit real credentials — set them via environment variables only.
 
-### Default Credentials
-
-| Username | Password | Role |
-|----------|----------|------|
-| `admin` | `admin123` | Superuser (full access) |
-| `staff` | `staff123` | Staff (limited access) |
-
----
 
 ## Features
 
