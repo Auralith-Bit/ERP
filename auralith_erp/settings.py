@@ -22,14 +22,16 @@ DEBUG = get_bool(os.environ.get('DEBUG'), True)
 
 allowed_hosts = os.environ.get(
     'ALLOWED_HOSTS',
-    'localhost,127.0.0.1'
+    'erp.auralithbit.com.np,erp-1-u9vu.onrender.com,erp-akwh.onrender.com,localhost,127.0.0.1'
 )
 ALLOWED_HOSTS = [
-    host.strip() for host in allowed_hosts.split(',') if host.strip()
+    host.strip().replace('https://', '').replace('http://', '')
+    for host in allowed_hosts.split(',')
+    if host.strip()
 ]
 
 if not ALLOWED_HOSTS:
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+    ALLOWED_HOSTS = ['erp.auralithbit.com.np', 'localhost', '127.0.0.1']
 
 CSRF_TRUSTED_ORIGINS = []
 for host in ALLOWED_HOSTS:
