@@ -1,29 +1,46 @@
 from pathlib import Path
 import os
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
+
+
+def get_bool(value, default=False):
+    if value is None:
+        return default
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
 
 # ---------------------------------------------------------------------------
-# Core security — all pulled from environment variables on Render
+# Core security — all pulled from environment variables
 # ---------------------------------------------------------------------------
-SECRET_KEY = os.environ.get('SECRET_KEY', 'local-dev-fallback-change-before-deploy')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'change-me-in-production')
 
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = get_bool(os.environ.get('DEBUG'), True)
 
+allowed_hosts = os.environ.get(
+    'ALLOWED_HOSTS',
+    'localhost,127.0.0.1'
+)
 ALLOWED_HOSTS = [
-    'erp.auralithbit.com.np',
-    'erp-1-u9vu.onrender.com',
-    'erp-akwh.onrender.com',
-    'localhost',
-    '127.0.0.1',
+    host.strip() for host in allowed_hosts.split(',') if host.strip()
 ]
 
-# Allow Render's HTTPS origin for CSRF
-CSRF_TRUSTED_ORIGINS = [
-    f"https://{host}"
-    for host in ALLOWED_HOSTS
-    if host
-]
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+
+CSRF_TRUSTED_ORIGINS = []
+for host in ALLOWED_HOSTS:
+    if host.startswith('http://') or host.startswith('https://'):
+        CSRF_TRUSTED_ORIGINS.append(host)
+    elif host in {'localhost', '127.0.0.1'}:
+        CSRF_TRUSTED_ORIGINS.extend([f'http://{host}', f'https://{host}'])
+    else:
+        CSRF_TRUSTED_ORIGINS.append(f'https://{host}')
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # ---------------------------------------------------------------------------
 # Application definition
@@ -133,11 +150,11 @@ EMAIL_BACKEND = os.environ.get(
     'EMAIL_BACKEND',
     'django.core.mail.backends.smtp.EmailBackend'
 )
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'kimt41121@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'vdws tdvv yert eftf')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = get_bool(os.environ.get('EMAIL_USE_TLS'), True)
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get(
-    'DEFAULT_FROM_EMAIL', 'Auralith ERP <kimt41121@gmail.com>',
+    'DEFAULT_FROM_EMAIL', 'Auralith ERP <noreply@example.com>',
 )

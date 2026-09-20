@@ -1,0 +1,31 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: erp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  web:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DEBUG: 'False'
+      SECRET_KEY: replace-with-a-random-long-secret
+      ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/erp
+      EMAIL_HOST_USER: ''
+      EMAIL_HOST_PASSWORD: ''
+      DEFAULT_FROM_EMAIL: 'Auralith ERP <noreply@example.com>'
+    ports:
+      - '8000:8000'
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

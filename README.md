@@ -8,15 +8,36 @@ Built with Django 4.2+.
 
 ## Quick Start
 
+### Option 1: Run locally on any Windows/macOS/Linux PC
+
 ```bash
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# macOS/Linux
+# source .venv/bin/activate
+
 pip install -r requirements.txt
+copy .env.example .env   # Windows
+# cp .env.example .env   # macOS/Linux
 python manage.py migrate
-python manage.py runserver
+python manage.py collectstatic --no-input
+python manage.py runserver 0.0.0.0:8000
 ```
 
 Browse to **http://localhost:8000**
 
+### Option 2: Run with Docker
+
+```bash
+docker compose up --build
+```
+
+Then open **http://localhost:8000**
+
 ### Environment Variables
+
+Copy `.env.example` to `.env` and update values as needed. The project will read these values automatically.
 
 Set the following environment variables in production or local dev:
 
