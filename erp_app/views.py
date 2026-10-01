@@ -1,4 +1,3 @@
-import os
 import json
 import io
 import logging
@@ -24,6 +23,7 @@ from django.http import JsonResponse, HttpResponse, FileResponse
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_http_methods
 from django.core.mail import send_mail
+from django.core.files.base import ContentFile
 from django.utils.html import strip_tags
 from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate, CourseEnrollment, Payment, PasswordResetCode, Attendance
 logger = logging.getLogger(__name__)
@@ -345,12 +345,35 @@ def id_generation(request):
             return redirect('id_generation')
         
         card_type = request.POST.get('card_type')
+        if request.POST.get('action') == 'generate':
+            try:
+                card = _generate_saved_id_card(card_type, request.POST.get('owner_id'), request.POST.get('course_id'))
+                Notification.objects.create(
+                    title=f'{card.get_card_type_display()} ID generated',
+                    message=f'{card.get_card_type_display()} ID card for {card.owner_name} has been generated.',
+                    created_by=request.user,
+                )
+                messages.success(request, f'{card.get_card_type_display()} ID card generated for {card.owner_name}.')
+            except (Student.DoesNotExist, Employee.DoesNotExist, Course.DoesNotExist, ValueError) as error:
+                messages.error(request, str(error))
+            return redirect('id_generation')
         uploaded_file = request.FILES.get('id_card_file')
         owner_id = request.POST.get('owner_id')
 
         if not card_type or not owner_id or not uploaded_file:
             messages.error(request, 'Please select a valid user and upload an ID card image.')
+        elif uploaded_file.size > 10 * 1024 * 1024:
+            messages.error(request, 'ID card images must be 10 MB or smaller.')
+        elif not uploaded_file.content_type.startswith('image/'):
+            messages.error(request, 'Choose a valid image file for the ID card.')
         else:
+            try:
+                image = Image.open(uploaded_file)
+                image.verify()
+                uploaded_file.seek(0)
+            except Exception:
+                messages.error(request, 'The selected file is not a readable image.')
+                return redirect('id_generation')
             if card_type == 'student':
                 student = Student.objects.filter(id=owner_id).first()
                 if student:
@@ -395,6 +418,93 @@ def id_generation(request):
     }
     return render(request, 'erp_app/id_generation.html', context)
 
+
+def _generate_saved_id_card(card_type, owner_id, course_id=None):
+    if card_type == 'student':
+        try:
+            student = Student.objects.get(pk=int(owner_id))
+        except (Student.DoesNotExist, TypeError, ValueError) as error:
+            raise Student.DoesNotExist('Select a valid student.') from error
+        if not course_id:
+            raise ValueError('Select a course for the student ID card.')
+        try:
+            course = Course.objects.get(pk=int(course_id))
+        except (Course.DoesNotExist, TypeError, ValueError) as error:
+            raise Course.DoesNotExist('Select a valid course.') from error
+        code = f'STU-{student.pk:05d}-{course.pk:05d}'
+        owner = student
+        details = [student.email, student.phone or 'N/A', course.name]
+        qr_data = {
+            'type': 'STUDENT_ID', 'id': code, 'name': student.name,
+            'email': student.email, 'phone': student.phone or 'N/A',
+            'course': course.name, 'category': course.get_category_display(),
+            'enrolled_date': student.enrolled_date.isoformat(),
+        }
+    elif card_type == 'employee':
+        try:
+            employee = Employee.objects.select_related('department').get(pk=int(owner_id))
+        except (Employee.DoesNotExist, TypeError, ValueError) as error:
+            raise Employee.DoesNotExist('Select a valid employee.') from error
+        code = f'EMP-{employee.pk:05d}'
+        owner = employee
+        details = [employee.email, employee.role or employee.get_employee_type_display(),
+                   employee.department.name if employee.department else 'Auralith Bit']
+        qr_data = {
+            'type': 'EMPLOYEE_ID', 'id': code, 'name': employee.name,
+            'email': employee.email, 'role': employee.role or 'N/A',
+            'department': employee.department.name if employee.department else 'N/A',
+            'employee_type': employee.get_employee_type_display(),
+            'joined_date': employee.joined_date.isoformat(),
+        }
+    else:
+        raise ValueError('Choose a valid card type.')
+
+    from PIL import ImageDraw, ImageFont
+    image = Image.new('RGB', (1011, 638), '#F7F9FC')
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle((8, 8, 1002, 630), radius=34, fill='#FFFFFF', outline='#1A4B8D', width=10)
+    draw.rounded_rectangle((14, 14, 996, 112), radius=25, fill='#1A4B8D')
+    font_dir = Path(ImageFont.__file__).parent / 'fonts'
+    regular_fonts = [Path('C:/Windows/Fonts/arial.ttf'), font_dir / 'DejaVuSans.ttf',
+                     Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'),
+                     Path('/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf')]
+    bold_fonts = [Path('C:/Windows/Fonts/arialbd.ttf'), font_dir / 'DejaVuSans-Bold.ttf',
+                  Path('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'),
+                  Path('/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf')]
+    def choose_font(candidates, size):
+        for candidate in candidates:
+            if candidate.exists():
+                return ImageFont.truetype(str(candidate), size)
+        return ImageFont.load_default()
+    def draw_label(position, text, fill, font):
+        try:
+            draw.text(position, text, fill=fill, font=font)
+        except UnicodeEncodeError:
+            draw.text(position, text.encode('latin-1', 'replace').decode('latin-1'), fill=fill, font=ImageFont.load_default())
+    draw_label((48, 37), 'AURALITH BIT', '#FFFFFF', choose_font(bold_fonts, 37))
+    draw_label((50, 125), f'{card_type.upper()} IDENTITY CARD', '#9A7136', choose_font(regular_fonts, 19))
+    draw_label((50, 184), owner.name[:32], '#153D68', choose_font(bold_fonts, 42))
+    body_font = choose_font(regular_fonts, 25)
+    y = 260
+    for line in details:
+        for wrapped in _wrap_words(line, 34)[:2]:
+            draw_label((55, y), wrapped, '#334155', body_font)
+            y += 43
+        y += 7
+    qr = qrcode.QRCode(box_size=7, border=2)
+    qr.add_data(json.dumps(qr_data, ensure_ascii=False))
+    qr.make(fit=True)
+    image.paste(qr.make_image(fill_color='#153D68', back_color='white').convert('RGB').resize((240, 240)), (720, 200))
+    draw_label((762, 455), code, '#1A4B8D', choose_font(regular_fonts, 19))
+    draw.line((48, 562, 963, 562), fill='#D9B55D', width=3)
+    draw_label((50, 577), 'DESIGN | DEVELOP | DELIVER', '#64748B', choose_font(regular_fonts, 19))
+    output = io.BytesIO()
+    image.save(output, format='PNG', optimize=True)
+    card = IDCard(card_type=card_type, student=owner if card_type == 'student' else None,
+                  employee=owner if card_type == 'employee' else None)
+    card.file.save(f'{code}.png', ContentFile(output.getvalue()), save=True)
+    return card
+
 @login_required
 @require_http_methods(["DELETE"])
 def delete_id_card(request, card_id):
@@ -405,6 +515,7 @@ def delete_id_card(request, card_id):
         card = IDCard.objects.get(id=card_id)
         card_type = card.get_card_type_display()
         owner_name = card.owner_name
+        card.file.delete(save=False)
         card.delete()
         return JsonResponse({
             'status': 'success',
@@ -864,16 +975,33 @@ def issue_certificate(request):
         course_id = request.POST.get('course')
         certificate_type = request.POST.get('certificate_type', 'internship')
         internship_details = request.POST.get('internship_details', '')
-
+        valid_types = {choice[0] for choice in Certificate.CERTIFICATE_TYPES}
         if not student_id:
             messages.error(request, 'Please select a student.')
+        elif certificate_type not in valid_types:
+            messages.error(request, 'Choose a valid certificate type.')
         else:
-            student = get_object_or_404(Student, id=student_id)
+            student = Student.objects.filter(id=student_id).first()
+            if not student:
+                messages.error(request, 'The selected student was not found.')
+                return redirect('issue_certificate')
             course = None
             if course_id:
                 course = Course.objects.filter(id=course_id).first()
+                if not course:
+                    messages.error(request, 'The selected course was not found.')
+                    return redirect('issue_certificate')
+            if certificate_type in ('course', 'workshop') and not course and not request.POST.get('program_title', '').strip():
+                messages.error(request, 'Select a course or enter a program title.')
+                return redirect('issue_certificate')
 
             uploaded_file = request.FILES.get('certificate_file')
+            if uploaded_file and (not uploaded_file.name.lower().endswith('.pdf') or uploaded_file.content_type != 'application/pdf'):
+                messages.error(request, 'The uploaded certificate must be a PDF file.')
+                return redirect('issue_certificate')
+            if uploaded_file and uploaded_file.size > 10 * 1024 * 1024:
+                messages.error(request, 'The uploaded PDF must be 10 MB or smaller.')
+                return redirect('issue_certificate')
 
             cert = Certificate.objects.create(
                 student=student,
@@ -881,7 +1009,13 @@ def issue_certificate(request):
                 certificate_type=certificate_type,
                 status='issued',
                 file=uploaded_file,
+                program_title=request.POST.get('program_title', '').strip(),
+                program_start_date=request.POST.get('program_start_date', '').strip(),
+                location=request.POST.get('location', '').strip() or 'Auralith Bit',
                 internship_details=internship_details,
+                authorized_signer_name=request.POST.get('authorized_signer_name', '').strip() or 'Authorized Signatory',
+                authorized_signer_title=request.POST.get('authorized_signer_title', '').strip() or 'Company Representative',
+                authorized_signature_text=request.POST.get('authorized_signature_text', '').strip(),
             )
 
             Notification.objects.create(
@@ -906,6 +1040,10 @@ def issue_certificate(request):
 @login_required
 def preview_certificate(request, cert_id):
     cert = get_object_or_404(Certificate.objects.select_related('student', 'course'), id=cert_id)
+
+    if cert.status != 'issued':
+        messages.error(request, 'This certificate is not currently valid for viewing.')
+        return redirect('certificates')
 
     if not has_role(request.user, SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF):
         if not hasattr(request.user, 'student_profile') or request.user.student_profile != cert.student:
@@ -957,19 +1095,15 @@ def _wrap_words(text, max_chars):
         lines.append(current)
     return lines or ['']
 
-def _write_simple_certificate_pdf(certificate, pdf_path):
+def _write_simple_certificate_pdf(certificate):
     page_width, page_height = 792, 612
     blue = (26 / 255, 75 / 255, 141 / 255)
     pink = (222 / 255, 43 / 255, 93 / 255)
     slate = (30 / 255, 41 / 255, 59 / 255)
     muted = (100 / 255, 116 / 255, 139 / 255)
     light = (226 / 255, 232 / 255, 240 / 255)
+    gold = (217 / 255, 181 / 255, 93 / 255)
 
-    title_map = {
-        'workshop': 'Certificate of Workshop Participation',
-        'internship': 'Certificate of Internship',
-        'course': 'Certificate of Course Completion',
-    }
     description_map = {
         'workshop': 'for actively participating in the workshop',
         'internship': 'for successfully completing the internship program at AURALITH BIT',
@@ -982,23 +1116,24 @@ def _write_simple_certificate_pdf(certificate, pdf_path):
     }
 
     commands = [
-        '1 1 1 rg 0 0 792 612 re f',
-        f'{blue[0]:.3f} {blue[1]:.3f} {blue[2]:.3f} RG 4 w 46 46 700 520 re S',
-        f'{light[0]:.3f} {light[1]:.3f} {light[2]:.3f} RG 1 w 58 58 676 496 re S',
+        f'{blue[0]:.3f} {blue[1]:.3f} {blue[2]:.3f} rg 0 0 792 612 re f',
+        f'{gold[0]:.3f} {gold[1]:.3f} {gold[2]:.3f} RG 3 w 18 18 756 576 re S',
+        '1 1 1 rg 28 28 736 556 re f',
+        f'{light[0]:.3f} {light[1]:.3f} {light[2]:.3f} RG 1 w 38 38 716 536 re S',
     ]
 
     _pdf_text(commands, 'AURALITH BIT', page_width / 2, 516, 13, 'F2', blue, 'center')
-    _pdf_text(commands, 'Centre for Development & Training', page_width / 2, 486, 24, 'F2', blue, 'center')
+    _pdf_text(commands, 'Design | Develop | Deliver', page_width / 2, 486, 18, 'F2', blue, 'center')
     commands.append(f'{pink[0]:.3f} {pink[1]:.3f} {pink[2]:.3f} rg 356 464 80 3 re f')
 
-    _pdf_text(commands, title_map.get(certificate.certificate_type, title_map['course']), page_width / 2, 422, 26, 'F2', slate, 'center')
+    _pdf_text(commands, certificate.certificate_heading, page_width / 2, 422, 26, 'F2', slate, 'center')
     _pdf_text(commands, 'PRESENTED TO', page_width / 2, 386, 11, 'F1', (0.58, 0.64, 0.72), 'center')
     _pdf_text(commands, certificate.student.name, page_width / 2, 346, 34, 'F2', blue, 'center')
     _pdf_text(commands, description_map.get(certificate.certificate_type, description_map['course']), page_width / 2, 316, 14, 'F1', muted, 'center')
 
     y = 286
-    if certificate.certificate_type in ('course', 'workshop') and certificate.course:
-        _pdf_text(commands, certificate.course.name, page_width / 2, y, 20, 'F2', pink, 'center')
+    if certificate.certificate_type in ('course', 'workshop'):
+        _pdf_text(commands, certificate.display_program_title, page_width / 2, y, 20, 'F2', pink, 'center')
         y -= 30
     elif certificate.certificate_type == 'internship' and certificate.internship_details:
         for line in _wrap_words(certificate.internship_details, 78)[:4]:
@@ -1010,16 +1145,18 @@ def _write_simple_certificate_pdf(certificate, pdf_path):
 
     detail_y = 188
     details = [
-        ('Date of Issue', certificate.issue_date.strftime('%B %d, %Y')),
+        ('Starting Date', certificate.program_start_date or certificate.issue_date.strftime('%Y/%m/%d')),
+        ('Location', certificate.location or 'Auralith Bit'),
         ('Certificate No.', certificate.certificate_number),
-        ('Status', certificate.get_status_display()),
     ]
     for x, (label, value) in zip((210, 396, 582), details):
         _pdf_text(commands, label.upper(), x, detail_y, 9, 'F1', (0.58, 0.64, 0.72), 'center')
         _pdf_text(commands, value, x, detail_y - 22, 14, 'F2', slate, 'center')
 
     commands.append(f'{light[0]:.3f} {light[1]:.3f} {light[2]:.3f} RG 1 w 172 122 m 620 122 l S')
-    for x, name, label in ((250, 'Authorized Signature', 'Program Coordinator'), (542, 'AURALITH BIT', 'Director')):
+    for x, name, label in ((250, certificate.authorized_signer_name or 'Authorized Signatory', certificate.authorized_signer_title or 'Company Representative'), (542, certificate.ceo_founder_name, certificate.ceo_founder_title)):
+        signature_text = certificate.dynamic_signature if x == 250 else certificate.ceo_founder_signature
+        _pdf_text(commands, signature_text, x, 112, 13, 'F2', blue, 'center')
         commands.append('0.741 0.773 0.820 RG 1 w %.2f 95 m %.2f 95 l S' % (x - 90, x + 90))
         _pdf_text(commands, name, x, 76, 13, 'F2', slate, 'center')
         _pdf_text(commands, label, x, 60, 11, 'F1', (0.58, 0.64, 0.72), 'center')
@@ -1051,69 +1188,37 @@ def _write_simple_certificate_pdf(certificate, pdf_path):
         pdf.extend(f'{offset:010d} 00000 n \n'.encode('ascii'))
     pdf.extend(f'trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n'.encode('ascii'))
 
-    with open(pdf_path, 'wb') as pdf_file:
-        pdf_file.write(pdf)
+    return bytes(pdf)
 
 
 @login_required
 def download_certificate(request, cert_id):
     cert = get_object_or_404(Certificate, id=cert_id)
 
+    if cert.status != 'issued':
+        messages.error(request, 'This certificate is not currently valid for download.')
+        return redirect('certificates')
+
     if not has_role(request.user, SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF):
         if not hasattr(request.user, 'student_profile') or request.user.student_profile != cert.student:
             messages.error(request, 'You do not have access to this certificate.')
             return redirect('certificates')
 
-    force = request.GET.get('force') == '1'
+    if cert.file and request.GET.get('force') != '1':
+        try:
+            cert.file.open('rb')
+            return FileResponse(cert.file, as_attachment=True, filename=f'{cert.certificate_number}.pdf')
+        except (FileNotFoundError, OSError):
+            cert.file = None
 
-    if force and cert.file and os.path.exists(cert.file.path):
-        os.remove(cert.file.path)
+    if cert.file:
+        cert.file.delete(save=False)
         cert.file = None
-        cert.save(update_fields=['file'])
-
-    if cert.file and os.path.exists(cert.file.path):
-        return FileResponse(open(cert.file.path, 'rb'), as_attachment=True, filename=f"{cert.certificate_number}.pdf")
-
-    pdf_path = os.path.join(settings.MEDIA_ROOT, 'certificates', f'{cert.certificate_number}.pdf')
-    os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
-
     try:
-        html_content = render_to_string('erp_app/certificate_download.html', {
-            'certificate': cert,
-        })
-
-        logo_path = Path(settings.STATIC_ROOT) / 'erp_app' / 'images' / 'AURALITH_logo.png'
-        if logo_path.exists():
-            with open(logo_path, 'rb') as f:
-                logo_b64 = b64encode(f.read()).decode('ascii')
-            logo_uri = f'data:image/png;base64,{logo_b64}'
-            html_content = html_content.replace(
-                '/static/erp_app/images/AURALITH_logo.png', logo_uri
-            )
-
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            browser = p.chromium.launch(args=[
-                '--disable-gpu',
-                '--disable-dev-shm-usage',
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-            ])
-            page = browser.new_page(viewport={'width': 816, 'height': 1056})
-            page.set_content(html_content, wait_until='load', timeout=30000)
-            page.pdf(
-                path=pdf_path,
-                format='Letter',
-                print_background=True,
-                margin={'top': '0', 'bottom': '0', 'left': '0', 'right': '0'},
-            )
-            page.close()
-            browser.close()
-
-        cert.file.name = f'certificates/{cert.certificate_number}.pdf'
-        cert.save(update_fields=['file'])
-
-        return FileResponse(open(pdf_path, 'rb'), as_attachment=True, filename=f"{cert.certificate_number}.pdf")
+        pdf_content = _write_simple_certificate_pdf(cert)
+        cert.file.save(f'{cert.certificate_number}.pdf', ContentFile(pdf_content), save=True)
+        cert.file.open('rb')
+        return FileResponse(cert.file, as_attachment=True, filename=f'{cert.certificate_number}.pdf')
     except Exception as e:
         messages.error(request, f'Could not generate PDF: {e}')
         return redirect('preview_certificate', cert_id=cert.id)

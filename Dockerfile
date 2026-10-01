@@ -12,8 +12,6 @@ RUN python -m pip install --upgrade pip && \
 
 COPY . .
 
-RUN python manage.py collectstatic --no-input || true
-
 EXPOSE 8000
 
-CMD ["sh", "-c", "python manage.py migrate && gunicorn auralith_erp.wsgi:application --bind 0.0.0.0:8000"]
+CMD ["sh", "entrypoint.sh"]

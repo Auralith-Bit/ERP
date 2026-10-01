@@ -1,4 +1,3 @@
-import os
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
@@ -226,7 +225,7 @@ class Certificate(models.Model):
 
     @staticmethod
     def generate_certificate_number():
-        year = datetime.now().year
+        year = datetime.date.today().year
         prefix = f"CERT-{year}-"
         last = Certificate.objects.filter(certificate_number__startswith=prefix).order_by('certificate_number').last()
         if last:
@@ -239,7 +238,7 @@ class Certificate(models.Model):
         if not self.certificate_number:
             self.certificate_number = Certificate.generate_certificate_number()
 
-        tracked_fields = {'student_id', 'program_title', 'certificate_type', 'program_start_date',
+        tracked_fields = {'student_id', 'course_id', 'program_title', 'certificate_type', 'program_start_date',
                           'location', 'authorized_signer_name', 'authorized_signer_title',
                           'authorized_signature_text', 'internship_details'}
 
@@ -248,8 +247,8 @@ class Certificate(models.Model):
                 old = Certificate.objects.get(pk=self.pk)
                 for field in tracked_fields:
                     if getattr(old, field) != getattr(self, field):
-                        if old.file and os.path.exists(old.file.path):
-                            os.remove(old.file.path)
+                        if old.file:
+                            old.file.delete(save=False)
                         self.file = None
                         break
             except Certificate.DoesNotExist:

@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 
@@ -16,31 +17,36 @@ def get_bool(value, default=False):
 # ---------------------------------------------------------------------------
 # Core security — all pulled from environment variables
 # ---------------------------------------------------------------------------
-SECRET_KEY = os.environ.get('SECRET_KEY', 'change-me-in-production')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-local-development-only')
 
-DEBUG = get_bool(os.environ.get('DEBUG'), True)
+DEBUG = get_bool(os.environ.get('DEBUG'), False)
+if not DEBUG and SECRET_KEY == 'django-insecure-local-development-only':
+    raise RuntimeError('Set SECRET_KEY to a strong, private value in production.')
 
 allowed_hosts = os.environ.get(
     'ALLOWED_HOSTS',
     'erp.auralithbit.com.np,erp-1-u9vu.onrender.com,erp-akwh.onrender.com,localhost,127.0.0.1'
 )
-ALLOWED_HOSTS = [
-    host.strip().replace('https://', '').replace('http://', '')
-    for host in allowed_hosts.split(',')
-    if host.strip()
-]
+ALLOWED_HOSTS = []
+CSRF_TRUSTED_ORIGINS = []
+for configured_host in allowed_hosts.split(','):
+    configured_host = configured_host.strip()
+    if not configured_host:
+        continue
+    parsed_host = urlsplit(configured_host if '://' in configured_host else f'//{configured_host}')
+    if parsed_host.hostname:
+        ALLOWED_HOSTS.append(parsed_host.hostname)
+        if parsed_host.scheme in {'http', 'https'}:
+            CSRF_TRUSTED_ORIGINS.append(f'{parsed_host.scheme}://{parsed_host.netloc}')
+        elif parsed_host.hostname in {'localhost', '127.0.0.1'}:
+            CSRF_TRUSTED_ORIGINS.extend([
+                f'http://{parsed_host.netloc}', f'https://{parsed_host.netloc}',
+            ])
+        else:
+            CSRF_TRUSTED_ORIGINS.append(f'https://{parsed_host.netloc}')
 
 if not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['erp.auralithbit.com.np', 'localhost', '127.0.0.1']
-
-CSRF_TRUSTED_ORIGINS = []
-for host in ALLOWED_HOSTS:
-    if host.startswith('http://') or host.startswith('https://'):
-        CSRF_TRUSTED_ORIGINS.append(host)
-    elif host in {'localhost', '127.0.0.1'}:
-        CSRF_TRUSTED_ORIGINS.extend([f'http://{host}', f'https://{host}'])
-    else:
-        CSRF_TRUSTED_ORIGINS.append(f'https://{host}')
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
@@ -96,7 +102,7 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
     import dj_database_url
     DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=60)
     }
 else:
     DATABASES = {
@@ -130,6 +136,10 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+}
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

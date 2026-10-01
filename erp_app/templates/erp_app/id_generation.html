@@ -18,14 +18,35 @@
 <header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
     <div class="header-info">
         <h1>ID Cards</h1>
-        <p>ID cards are already created by the company. Use this page to upload or preview the ID card image only.</p>
+        <p>Generate branded cards with QR codes, or upload an existing company card for the same preview and download workflow.</p>
     </div>
 </header>
 
 <div style="display:grid;grid-template-columns:{% if is_admin %}1fr 1fr{% else %}1fr{% endif %};gap:20px;">
     {% if is_admin %}
     <div class="data-card" style="padding:25px;">
-        <h3 style="margin-bottom:15px;">Upload Student ID Card</h3>
+        <h3 style="margin-bottom:15px;">Generate Student ID Card</h3>
+        <form method="post" style="margin-bottom:24px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="generate">
+            <input type="hidden" name="card_type" value="student">
+            <div class="form-group" style="margin-bottom:15px;">
+                <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Student</label>
+                <select name="owner_id" style="width:100%;padding:10px;border:1px solid #E2E8F0;border-radius:8px;" required>
+                    <option value="">Select a student...</option>
+                    {% for student in students %}<option value="{{ student.id }}">{{ student.name }} ({{ student.email }})</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom:15px;">
+                <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Course</label>
+                <select name="course_id" style="width:100%;padding:10px;border:1px solid #E2E8F0;border-radius:8px;" required>
+                    <option value="">Select a course...</option>
+                    {% for course in courses %}<option value="{{ course.id }}">{{ course.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <button class="btn-primary" type="submit"><i class="ph ph-identification-card"></i> Generate Student ID</button>
+        </form>
+        <h3 style="margin-bottom:15px;">Or Upload Existing Student ID</h3>
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="card_type" value="student">
@@ -47,7 +68,21 @@
     </div>
 
     <div class="data-card" style="padding:25px;">
-        <h3 style="margin-bottom:15px;">Upload Employee ID Card</h3>
+        <h3 style="margin-bottom:15px;">Generate Employee ID Card</h3>
+        <form method="post" style="margin-bottom:24px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="generate">
+            <input type="hidden" name="card_type" value="employee">
+            <div class="form-group" style="margin-bottom:15px;">
+                <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Employee</label>
+                <select name="owner_id" style="width:100%;padding:10px;border:1px solid #E2E8F0;border-radius:8px;" required>
+                    <option value="">Select an employee...</option>
+                    {% for employee in employees %}<option value="{{ employee.id }}">{{ employee.name }} ({{ employee.email }})</option>{% endfor %}
+                </select>
+            </div>
+            <button class="btn-primary" type="submit"><i class="ph ph-identification-card"></i> Generate Employee ID</button>
+        </form>
+        <h3 style="margin-bottom:15px;">Or Upload Existing Employee ID</h3>
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="card_type" value="employee">
@@ -82,6 +117,7 @@
                 </div>
                 {% if is_admin %}
                 <div class="id-card-actions">
+                    <a class="btn-outline" href="{{ card.file.url }}" download onclick="event.stopPropagation();">Download</a>
                     <button type="button" class="btn-delete" onclick="deleteIDCard(event, {{ card.id }})">
                         <i class="ph ph-trash"></i> Delete
                     </button>
@@ -108,6 +144,7 @@
                 </div>
                 {% if is_admin %}
                 <div class="id-card-actions">
+                    <a class="btn-outline" href="{{ card.file.url }}" download onclick="event.stopPropagation();">Download</a>
                     <button type="button" class="btn-delete" onclick="deleteIDCard(event, {{ card.id }})">
                         <i class="ph ph-trash"></i> Delete
                     </button>

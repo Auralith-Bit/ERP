@@ -33,13 +33,13 @@ Browse to **http://localhost:8000**
 docker compose up --build
 ```
 
-Then open **http://localhost:8000**
+Then open **http://localhost:8000**. Before starting, copy `.env.example` to `.env` and replace `SECRET_KEY` and `POSTGRES_PASSWORD` with random values. Use URL-safe characters for the Postgres password (for example, generate it with `openssl rand -hex 32`).
 
 ### Environment Variables
 
 Copy `.env.example` to `.env` and update values as needed. The project will read these values automatically.
 
-Set the following environment variables in production or local dev:
+Set the following environment variables in production or local dev. Production must use a persistent PostgreSQL service and a private `SECRET_KEY`; configure the provider's internal or external Postgres URL as `DATABASE_URL` and the public app hostname in `ALLOWED_HOSTS`.
 
 | Variable | Required | Notes |
 |----------|----------|-------|
@@ -50,6 +50,10 @@ Set the following environment variables in production or local dev:
 | `EMAIL_HOST_USER` | No | Gmail address for payment receipts |
 | `EMAIL_HOST_PASSWORD` | No | Gmail app password |
 | `STAFF_REGISTRATION_CODE` | No | Defaults to `AURALITH2024` |
+
+The container waits for the database, applies migrations, collects static files, then starts Gunicorn. The `wait_for_db` command retries connections for up to 60 seconds (`DB_WAIT_TIMEOUT` can override this). Keep the database service's persistent disk/volume enabled: the app does not create or erase records during deployment. Uploaded files are stored under `MEDIA_ROOT`; configure persistent media/object storage on hosting platforms where the app filesystem is temporary.
+
+To start with a clean hosted database, run `python manage.py flush --noinput` once from the provider's shell after connecting the service to the intended database. This removes all database records, including user accounts, while preserving tables and migrations; create a new administrator with `python manage.py createsuperuser` afterward. Do not run `flush` on a database containing data you need.
 
 ### Production Build (Render)
 
@@ -125,15 +129,15 @@ For Gmail, use an **App Password** instead of your normal Gmail password.
 - Auto-issuance when a course enrollment is marked "completed"
 - Manual issuance via staff form with configurable signer, title, location, dates
 - **HTML preview** — styled certificate with gold borders, gradient backgrounds, watermarks
-- **PDF download** — generates letter-size PDF using **Playwright** (Chromium), identical to preview
+- **PDF download** — generates a branded PDF without requiring a browser runtime
 - Auto-regeneration: cached PDF deleted when certificate data changes
 - Force-regenerate via `?force=1` query parameter
 - Revoke/reissue actions in admin panel
 
 ### ID Card System
-- Generate student and employee ID cards
-- QR code encoding (student info or employee info) embedded in each card
-- Upload ID card images for students/employees
+- Generate branded student and employee ID card images with QR codes
+- QR codes include card holder identity and course or employee details
+- Upload existing ID card images, preview them, download them, or delete them
 - Image viewer modal and delete support
 - QR verification endpoint
 
@@ -458,7 +462,7 @@ AURALITH erp/
 | `/certificates/` | `certificates` | Certificate list with filters |
 | `/certificates/issue/` | `issue_certificate` | Manual certificate issuance |
 | `/certificates/&lt;id&gt;/` | `preview_certificate` | Styled HTML preview |
-| `/certificates/&lt;id&gt;/download/` | `download_certificate` | PDF download (Playwright) |
+| `/certificates/&lt;id&gt;/download/` | `download_certificate` | Generate or download a certificate PDF |
 
 ### ID Cards
 | Route | View | Description |
@@ -490,17 +494,7 @@ AURALITH erp/
 
 ## Certificate PDF Generation
 
-The certificate download pipeline uses **Playwright** (headless Chromium), not WeasyPrint:
-
-1. **Template:** `certificate_download.html` renders the certificate with `is_pdf=True`
-2. **Static files:** `/static/` paths are rewritten to `file://` absolute paths so Chromium can load them offline
-3. **Playwright:** Launches headless Chromium, sets the HTML content, generates a PDF via `page.pdf()`
-4. **Page format:** Letter size (8.5" × 11"), portrait, zero margins, `print_background=True`
-5. **Caching:** Generated PDF saved to `media/certificates/` and cached on the model's `file` field
-6. **Auto-invalidation:** When certificate data changes (student, title, signer, etc.), the cached PDF is deleted on `save()`
-7. **Force regenerate:** Visit `/certificates/<id>/download/?force=1` to bypass cache
-
-**Fonts:** Render exactly as in the browser (same Chromium engine) — Brush Script MT, Segoe UI, Georgia, etc.
+Certificate PDFs use a built-in PDF renderer, so issuing and downloading certificates does not require Chromium. Generated PDFs are saved through Django's configured file storage and cached on the certificate. Editing certificate content clears the cached PDF; use `/certificates/<id>/download/?force=1` to regenerate it.
 
 ---
 
