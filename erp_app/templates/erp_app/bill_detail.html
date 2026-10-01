@@ -1,0 +1,15 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Bill {{ bill.bill_number }}{% endblock %}
+{% block content %}
+<style>
+.bill-sheet{max-width:800px;margin:24px auto;padding:48px;background:#fff;color:#172033;border:1px solid #dbe2ea;border-radius:12px}.bill-head{display:flex;justify-content:space-between;border-bottom:2px solid #173b68;padding-bottom:22px}.bill-head h1{margin:0;color:#173b68}.bill-table{width:100%;margin:36px 0;border-collapse:collapse}.bill-table td{padding:12px;border-bottom:1px solid #e2e8f0}.bill-table td:last-child{text-align:right;font-weight:700}.bill-actions{max-width:800px;margin:0 auto 16px;display:flex;gap:10px}@media print{.sidebar,.top-nav,.bill-actions,.messages{display:none!important}.main-content{margin:0!important;padding:0!important}.bill-sheet{margin:0;max-width:none;border:0;border-radius:0}}
+</style>
+<div class="bill-actions"><button class="btn-primary" onclick="window.print()">Print / Save as PDF</button><a class="btn-outline" href="{% if bill.enrollment_id %}{% url 'student_detail' bill.enrollment.student_id %}{% else %}{% url 'project_detail' bill.project_id %}{% endif %}">Back to record</a></div>
+<article class="bill-sheet">
+  <div class="bill-head"><div><h1>Auralith Bit</h1><p>Invoice / Bill</p></div><div style="text-align:right"><strong>{{ bill.bill_number }}</strong><p>Issued {{ bill.issued_at|date:'M d, Y' }}</p></div></div>
+  <p><strong>Bill to:</strong> {{ bill.billed_to }}</p>
+  {% if bill.enrollment_id %}<p><strong>Student:</strong> {{ bill.enrollment.student.name }} · <strong>Course:</strong> {{ bill.enrollment.course.name }}</p>{% else %}<p><strong>Client:</strong> {{ bill.project.client|default:'Client' }} · <strong>Project:</strong> {{ bill.project.name }}</p>{% endif %}
+  <table class="bill-table"><tbody><tr><td>{{ bill.description }}</td><td>Rs. {{ bill.amount|floatformat:2 }}</td></tr><tr><td>Paid as of issue date</td><td>− Rs. {{ bill.amount_paid|floatformat:2 }}</td></tr><tr><td><strong>Balance due as of issue date</strong></td><td><strong>Rs. {{ bill.balance_due|floatformat:2 }}</strong></td></tr></tbody></table>
+  <p style="color:#64748b">This bill records the balance at the time it was issued. Payments made later will appear in the student or project payment history.</p>
+</article>
+{% endblock %}

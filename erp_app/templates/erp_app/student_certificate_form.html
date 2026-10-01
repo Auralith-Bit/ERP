@@ -1,0 +1,8 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Edit Certificate{% endblock %}
+{% block content %}
+<div class="data-card" style="max-width:760px;margin:24px auto;">
+  <h1>Edit certificate</h1><p>{{ student.name }} · {{ certificate.certificate_number }}</p>
+  <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn-primary" type="submit">Save and regenerate</button> <a class="btn-outline" href="{% url 'student_detail' student.id %}">Cancel</a></form>
+</div>
+{% endblock %}

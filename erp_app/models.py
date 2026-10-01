@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 import datetime
+import uuid
 
 
 # ── Role Constants ──────────────────────────────────────────────
@@ -374,6 +375,41 @@ class ProjectPayment(models.Model):
 
     def __str__(self):
         return f'{self.amount} paid for {self.project.name}'
+
+
+class Bill(models.Model):
+    bill_number = models.CharField(max_length=32, unique=True, editable=False)
+    enrollment = models.ForeignKey(CourseEnrollment, on_delete=models.CASCADE, null=True, blank=True, related_name='bills')
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True, related_name='bills')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    description = models.CharField(max_length=255)
+    issued_at = models.DateTimeField(auto_now_add=True)
+    issued_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-issued_at']
+        constraints = [
+            models.CheckConstraint(
+                condition=(models.Q(enrollment__isnull=False, project__isnull=True) | models.Q(enrollment__isnull=True, project__isnull=False)),
+                name='bill_has_one_subject',
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.bill_number:
+            self.bill_number = f'BILL-{datetime.date.today():%Y}-{uuid.uuid4().hex[:10].upper()}'
+        super().save(*args, **kwargs)
+
+    @property
+    def balance_due(self):
+        return max(self.amount - self.amount_paid, 0)
+
+    @property
+    def billed_to(self):
+        if self.enrollment_id:
+            return self.enrollment.student.name
+        return self.project.client or 'Client'
 
 
 class Attendance(models.Model):

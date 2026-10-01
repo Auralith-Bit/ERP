@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import CourseEnrollment, Payment, Project, ProjectPayment, Student
+from .models import Certificate, CourseEnrollment, Payment, Project, ProjectPayment, Student
 
 
 class ERPForm(forms.ModelForm):
@@ -87,3 +87,20 @@ class CourseEnrollmentForm(ERPForm):
 
 class EnrollmentFeeForm(forms.Form):
     total_fee = forms.DecimalField(min_value=0, max_digits=10, decimal_places=2, widget=forms.NumberInput(attrs={'min': '0', 'step': '0.01', 'class': 'erp-form-control'}))
+
+
+class StudentCertificateForm(ERPForm):
+    class Meta:
+        model = Certificate
+        fields = [
+            'certificate_type', 'course', 'program_title', 'program_start_date',
+            'location', 'internship_details', 'authorized_signer_name',
+            'authorized_signer_title', 'authorized_signature_text',
+        ]
+        widgets = {'internship_details': forms.Textarea(attrs={'rows': 3})}
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('certificate_type') in ('course', 'workshop') and not cleaned.get('course') and not cleaned.get('program_title'):
+            raise forms.ValidationError('Choose a course or enter a program title.')
+        return cleaned

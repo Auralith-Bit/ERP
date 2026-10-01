@@ -27,8 +27,8 @@ from django.core.mail import send_mail
 from django.core.files.base import ContentFile
 from django.utils.html import strip_tags
 from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate, CourseEnrollment, Payment, PasswordResetCode, Attendance
-from .models import ProjectPayment
-from .forms import CourseEnrollmentForm, EnrollmentFeeForm, PaymentForm, ProjectForm, ProjectPaymentForm, StudentForm
+from .models import ProjectPayment, Bill
+from .forms import CourseEnrollmentForm, EnrollmentFeeForm, PaymentForm, ProjectForm, ProjectPaymentForm, StudentCertificateForm, StudentForm
 logger = logging.getLogger(__name__)
 from .roles import (get_user_roles, has_role,
     SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF, STUDENT, INTERN,
@@ -339,6 +339,10 @@ def student_detail(request, student_id):
         'student': student, 'enrollments': enrollments, 'total_fees': total_fees,
         'paid_total': paid_total, 'remaining_total': max(total_fees - paid_total, 0),
         'enrollment_form': CourseEnrollmentForm(), 'payment_form': PaymentForm(), 'is_admin': True,
+        'id_cards': student.id_cards.all(),
+        'certificates': student.certificates.select_related('course').all(),
+        'certificate_form': StudentCertificateForm(initial={'location': 'Auralith Bit'}),
+        'can_issue_certificates': has_role(request.user, SUPER_ADMIN) or request.user.has_perm('erp_app.can_issue_certificates'),
     })
 
 
@@ -407,6 +411,96 @@ def student_delete(request, student_id):
     student.delete()
     messages.success(request, f'Student {name} and associated enrollment/payment records were deleted.')
     return redirect('students')
+
+
+@login_required
+@require_POST
+def generate_intern_id_card(request, student_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to generate ID cards.')
+        return redirect('dashboard')
+    student = get_object_or_404(Student, pk=student_id, is_intern=True)
+    existing_card = None
+    card_id = request.POST.get('card_id')
+    if card_id:
+        existing_card = get_object_or_404(IDCard, pk=card_id, card_type='student', student=student)
+    card = _generate_saved_id_card('student', student.pk, request.POST.get('course_id'), existing_card=existing_card)
+    messages.success(request, f'Intern ID card generated for {student.name}. Edit intern details and regenerate the card to update its printed data.')
+    return redirect('student_detail', student_id=student.id)
+
+
+@login_required
+@require_POST
+def delete_student_id_card(request, student_id, card_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to delete ID cards.')
+        return redirect('dashboard')
+    student = get_object_or_404(Student, pk=student_id)
+    card = get_object_or_404(IDCard, pk=card_id, student=student)
+    card.file.delete(save=False)
+    card.delete()
+    messages.success(request, 'ID card deleted.')
+    return redirect('student_detail', student_id=student.id)
+
+
+@login_required
+@require_POST
+def student_certificate_issue(request, student_id):
+    if not has_role(request.user, SUPER_ADMIN) and not request.user.has_perm('erp_app.can_issue_certificates'):
+        messages.error(request, 'You do not have permission to issue certificates.')
+        return redirect('student_detail', student_id=student_id)
+    student = get_object_or_404(Student, pk=student_id)
+    form = StudentCertificateForm(request.POST)
+    if form.is_valid():
+        certificate = form.save(commit=False)
+        certificate.student = student
+        certificate.status = 'issued'
+        if certificate.certificate_type not in ('course', 'workshop'):
+            certificate.course = None
+        certificate.save()
+        Notification.objects.create(
+            title='Certificate Issued',
+            message=f'{certificate.get_certificate_type_display()} certificate {certificate.certificate_number} issued to {student.name}.',
+            created_by=request.user,
+        )
+        messages.success(request, f'Certificate {certificate.certificate_number} issued.')
+    else:
+        messages.error(request, form.errors.as_text())
+    return redirect('student_detail', student_id=student.id)
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def student_certificate_edit(request, student_id, cert_id):
+    if not has_role(request.user, SUPER_ADMIN) and not request.user.has_perm('erp_app.can_issue_certificates'):
+        messages.error(request, 'You do not have permission to edit certificates.')
+        return redirect('student_detail', student_id=student_id)
+    student = get_object_or_404(Student, pk=student_id)
+    certificate = get_object_or_404(Certificate, pk=cert_id, student=student)
+    form = StudentCertificateForm(request.POST or None, instance=certificate)
+    if request.method == 'POST' and form.is_valid():
+        certificate = form.save(commit=False)
+        if certificate.certificate_type not in ('course', 'workshop'):
+            certificate.course = None
+        certificate.save()
+        messages.success(request, f'Certificate {certificate.certificate_number} updated.')
+        return redirect('student_detail', student_id=student.id)
+    return render(request, 'erp_app/student_certificate_form.html', {'form': form, 'student': student, 'certificate': certificate})
+
+
+@login_required
+@require_POST
+def student_certificate_delete(request, student_id, cert_id):
+    if not has_role(request.user, SUPER_ADMIN) and not request.user.has_perm('erp_app.can_issue_certificates'):
+        messages.error(request, 'You do not have permission to delete certificates.')
+        return redirect('student_detail', student_id=student_id)
+    student = get_object_or_404(Student, pk=student_id)
+    certificate = get_object_or_404(Certificate, pk=cert_id, student=student)
+    if certificate.file:
+        certificate.file.delete(save=False)
+    certificate.delete()
+    messages.success(request, 'Certificate deleted.')
+    return redirect('student_detail', student_id=student.id)
 
 @login_required
 def courses(request):
@@ -578,27 +672,35 @@ def id_generation(request):
     return render(request, 'erp_app/id_generation.html', context)
 
 
-def _generate_saved_id_card(card_type, owner_id, course_id=None):
+def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=None):
     if card_type == 'student':
         try:
             student = Student.objects.get(pk=int(owner_id))
         except (Student.DoesNotExist, TypeError, ValueError) as error:
             raise Student.DoesNotExist('Select a valid student.') from error
-        if not course_id:
+        course = None
+        if course_id:
+            try:
+                course = Course.objects.get(pk=int(course_id))
+            except (Course.DoesNotExist, TypeError, ValueError) as error:
+                raise Course.DoesNotExist('Select a valid course.') from error
+        if not course and not student.is_intern:
             raise ValueError('Select a course for the student ID card.')
-        try:
-            course = Course.objects.get(pk=int(course_id))
-        except (Course.DoesNotExist, TypeError, ValueError) as error:
-            raise Course.DoesNotExist('Select a valid course.') from error
-        code = f'STU-{student.pk:05d}-{course.pk:05d}'
+        code = f'INT-{student.pk:05d}' if student.is_intern else f'STU-{student.pk:05d}-{course.pk:05d}'
         owner = student
-        details = [student.email, student.phone or 'N/A', course.name]
+        details = [student.email, student.phone or 'N/A', 'Intern · Auralith Bit' if student.is_intern else course.name]
+        if course:
+            details.append(f'Course: {course.name}')
+        qr_type = 'INTERN_ID' if student.is_intern else 'STUDENT_ID'
         qr_data = {
-            'type': 'STUDENT_ID', 'id': code, 'name': student.name,
+            'type': qr_type, 'id': code, 'name': student.name,
             'email': student.email, 'phone': student.phone or 'N/A',
-            'course': course.name, 'category': course.get_category_display(),
+            'role': 'Intern' if student.is_intern else 'Student',
+            'course': course.name if course else '',
+            'category': course.get_category_display() if course else '',
             'enrolled_date': student.enrolled_date.isoformat(),
         }
+        card_heading = 'INTERN IDENTITY CARD' if student.is_intern else 'STUDENT IDENTITY CARD'
     elif card_type == 'employee':
         try:
             employee = Employee.objects.select_related('department').get(pk=int(owner_id))
@@ -615,6 +717,7 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None):
             'employee_type': employee.get_employee_type_display(),
             'joined_date': employee.joined_date.isoformat(),
         }
+        card_heading = 'EMPLOYEE IDENTITY CARD'
     else:
         raise ValueError('Choose a valid card type.')
 
@@ -641,7 +744,7 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None):
         except UnicodeEncodeError:
             draw.text(position, text.encode('latin-1', 'replace').decode('latin-1'), fill=fill, font=ImageFont.load_default())
     draw_label((48, 37), 'AURALITH BIT', '#FFFFFF', choose_font(bold_fonts, 37))
-    draw_label((50, 125), f'{card_type.upper()} IDENTITY CARD', '#9A7136', choose_font(regular_fonts, 19))
+    draw_label((50, 125), card_heading, '#9A7136', choose_font(regular_fonts, 19))
     draw_label((50, 184), owner.name[:32], '#153D68', choose_font(bold_fonts, 42))
     body_font = choose_font(regular_fonts, 25)
     y = 260
@@ -659,8 +762,10 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None):
     draw_label((50, 577), 'DESIGN | DEVELOP | DELIVER', '#64748B', choose_font(regular_fonts, 19))
     output = io.BytesIO()
     image.save(output, format='PNG', optimize=True)
-    card = IDCard(card_type=card_type, student=owner if card_type == 'student' else None,
-                  employee=owner if card_type == 'employee' else None)
+    card = existing_card or IDCard(card_type=card_type, student=owner if card_type == 'student' else None,
+                                   employee=owner if card_type == 'employee' else None)
+    if existing_card:
+        card.file.delete(save=False)
     card.file.save(f'{code}.png', ContentFile(output.getvalue()), save=True)
     return card
 
@@ -745,7 +850,7 @@ def project_edit(request, project_id):
     if not _can_manage_company_records(request.user):
         messages.error(request, 'You do not have permission to edit client projects.')
         return redirect('dashboard')
-    project = get_object_or_404(Project.objects.prefetch_related('payments'), pk=project_id)
+    project = get_object_or_404(Project.objects.prefetch_related('payments', 'bills'), pk=project_id)
     form = ProjectForm(request.POST or None, instance=project)
     if request.method == 'POST' and form.is_valid():
         paid = sum((payment.amount for payment in project.payments.all()), 0)
@@ -764,7 +869,7 @@ def project_detail(request, project_id):
     if not _can_manage_company_records(request.user):
         messages.error(request, 'You do not have permission to view client project financials.')
         return redirect('dashboard')
-    project = get_object_or_404(Project.objects.prefetch_related('payments'), pk=project_id)
+    project = get_object_or_404(Project.objects.prefetch_related('payments', 'bills'), pk=project_id)
     if request.method == 'POST':
         form = ProjectPaymentForm(request.POST)
         if form.is_valid():
@@ -799,6 +904,54 @@ def project_delete(request, project_id):
     project.delete()
     messages.success(request, f'Client project {name} and its payment history were deleted.')
     return redirect('projects')
+
+
+@login_required
+@require_POST
+def generate_student_bill(request, student_id, enrollment_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to issue student bills.')
+        return redirect('dashboard')
+    enrollment = get_object_or_404(CourseEnrollment.objects.select_related('student', 'course'), pk=enrollment_id, student_id=student_id)
+    paid = enrollment.total_paid()
+    bill = Bill.objects.create(
+        enrollment=enrollment,
+        amount=enrollment.total_fee,
+        amount_paid=paid,
+        description=f'{enrollment.course.name} course fee',
+        issued_by=request.user,
+    )
+    messages.success(request, f'Bill {bill.bill_number} generated for {enrollment.student.name}.')
+    return redirect('bill_detail', bill_id=bill.id)
+
+
+@login_required
+@require_POST
+def generate_project_bill(request, project_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to issue client bills.')
+        return redirect('dashboard')
+    project = get_object_or_404(Project, pk=project_id)
+    bill = Bill.objects.create(
+        project=project,
+        amount=project.budget,
+        amount_paid=project.amount_paid(),
+        description=project.description or project.name,
+        issued_by=request.user,
+    )
+    messages.success(request, f'Bill {bill.bill_number} generated for {project.client or project.name}.')
+    return redirect('bill_detail', bill_id=bill.id)
+
+
+@login_required
+def bill_detail(request, bill_id):
+    bill = get_object_or_404(Bill.objects.select_related('enrollment__student', 'enrollment__course', 'project', 'issued_by'), pk=bill_id)
+    is_staff = has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF)
+    is_owner = bool(bill.enrollment_id and hasattr(request.user, 'student_profile') and request.user.student_profile_id == bill.enrollment.student_id)
+    if not (is_staff or is_owner):
+        messages.error(request, 'You do not have access to this bill.')
+        return redirect('dashboard')
+    return render(request, 'erp_app/bill_detail.html', {'bill': bill, 'is_admin': _can_manage_company_records(request.user)})
 
 @login_required
 def attendance(request):
@@ -1154,10 +1307,10 @@ def verify_id_card(request):
         qr_data = json.loads(qr_data_str)
         card_type = qr_data.get('type')
         
-        if card_type == 'STUDENT_ID':
+        if card_type in ('STUDENT_ID', 'INTERN_ID'):
             return JsonResponse({
                 'success': True,
-                'type': 'student',
+                'type': 'intern' if card_type == 'INTERN_ID' else 'student',
                 'id': qr_data.get('id'),
                 'name': qr_data.get('name'),
                 'email': qr_data.get('email'),

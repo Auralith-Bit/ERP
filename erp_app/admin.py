@@ -3,7 +3,7 @@ from django.db.models import Count
 from django.template.loader import render_to_string
 from django.core.mail import send_mail
 from django.utils.html import format_html, strip_tags
-from .models import Mentor, Department, Course, Student, CourseEnrollment, Employee, Project, ProjectPayment, Notification, IDCard, Certificate, Payment, Attendance
+from .models import Mentor, Department, Course, Student, CourseEnrollment, Employee, Project, ProjectPayment, Bill, Notification, IDCard, Certificate, Payment, Attendance
 
 
 class CourseEnrollmentInline(admin.TabularInline):
@@ -21,6 +21,13 @@ class ProjectPaymentInline(admin.TabularInline):
     model = ProjectPayment
     extra = 0
     readonly_fields = ['payment_date', 'recorded_by']
+
+
+@admin.register(Bill)
+class BillAdmin(admin.ModelAdmin):
+    list_display = ['bill_number', 'billed_to', 'description', 'amount', 'amount_paid', 'issued_at']
+    search_fields = ['bill_number', 'enrollment__student__name', 'project__client', 'project__name']
+    readonly_fields = ['bill_number', 'issued_at', 'issued_by']
 
 
 @admin.register(Mentor)

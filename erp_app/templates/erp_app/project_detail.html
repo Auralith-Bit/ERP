@@ -15,6 +15,7 @@
   <p style="white-space:pre-wrap;line-height:1.7;">{{ project.description|default:'No project scope has been entered.' }}</p>
   <small style="color:#64748B;">Started {{ project.start_date|date:'M d, Y' }}</small>
 </div>
+<div class="data-card" style="margin-bottom:22px;"><h3>Client bills</h3><p>Generate a printable statement of the agreed price, payments received, and remaining balance.</p><form method="post" action="{% url 'generate_project_bill' project.id %}" style="margin:12px 0;">{% csrf_token %}<button class="btn-primary" type="submit">Generate Client Bill</button></form>{% for bill in project.bills.all %}<p><a href="{% url 'bill_detail' bill.id %}">{{ bill.bill_number }}</a> · {{ bill.issued_at|date:'M d, Y' }} · Rs. {{ bill.balance_due|floatformat:2 }} due</p>{% empty %}<p>No bills generated yet.</p>{% endfor %}</div>
 <div class="main-grid">
   <div class="data-card" style="padding:0;overflow-x:auto;">
     <div style="padding:18px 20px 0;"><h3>Payment history</h3></div>

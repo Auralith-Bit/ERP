@@ -17,6 +17,7 @@
       <td><strong>{{ enrollment.course.name }}</strong><small style="display:block;color:#64748B;">{{ enrollment.get_status_display }}</small></td>
       <td>{{ enrollment.enrolled_date }}</td><td>Rs. {{ enrollment.total_fee|floatformat:2 }}</td><td>Rs. {{ enrollment.paid_amount|floatformat:2 }}</td><td><strong>Rs. {{ enrollment.remaining_amount|floatformat:2 }}</strong></td>
       <td>
+        <form method="post" action="{% url 'generate_student_bill' student.id enrollment.id %}" style="margin-bottom:8px;">{% csrf_token %}<button class="btn-outline" type="submit">Generate Bill</button></form>
         <details><summary style="cursor:pointer;color:#1A4B8D;">Manage</summary>
           <form method="post" action="{% url 'student_finance_action' student.id %}" style="padding:10px 0;min-width:230px;">{% csrf_token %}
             <input type="hidden" name="action" value="update_fee"><input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
@@ -36,6 +37,18 @@
     {% empty %}<tr><td colspan="6" style="padding:24px;text-align:center;">No course enrollments yet.</td></tr>{% endfor %}
   </tbody></table>
 </div>
+{% if student.is_intern %}
+<section class="data-card" style="margin:22px 0;">
+  <h3>Intern ID cards</h3><p style="color:#64748B;">The printed details use the intern profile. Edit the profile, then regenerate to refresh the card.</p>
+  <div style="display:flex;gap:10px;align-items:center;margin:12px 0;"><a class="btn-outline" href="{% url 'student_edit' student.id %}">Edit intern data</a><form method="post" action="{% url 'generate_intern_id_card' student.id %}">{% csrf_token %}<button class="btn-primary" type="submit">Generate intern ID card</button></form></div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;">{% for card in id_cards %}<div style="border:1px solid #CBD5E1;border-radius:10px;padding:12px;max-width:340px;"><a href="{{ card.file.url }}" target="_blank" rel="noopener"><img src="{{ card.file.url }}" alt="Intern ID card for {{ student.name }}" style="display:block;width:300px;max-width:100%;border-radius:8px;"></a><p><a href="{{ card.file.url }}" target="_blank" rel="noopener">View</a> · <a href="{{ card.file.url }}" download>Download</a></p><form method="post" action="{% url 'generate_intern_id_card' student.id %}" style="display:inline;">{% csrf_token %}<input type="hidden" name="card_id" value="{{ card.id }}"><button class="btn-outline" type="submit">Regenerate</button></form> <form method="post" action="{% url 'delete_student_id_card' student.id card.id %}" style="display:inline;" onsubmit="return confirm('Delete this ID card?');">{% csrf_token %}<button class="btn-outline" type="submit">Delete</button></form></div>{% empty %}<p>No intern ID cards have been generated.</p>{% endfor %}</div>
+</section>
+{% endif %}
+<section class="data-card" style="margin:22px 0;">
+  <h3>Certificates</h3><p style="color:#64748B;">Issue, preview, edit, download, or revoke by deleting a certificate record.</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;">{% for certificate in certificates %}<div style="border:1px solid #CBD5E1;border-radius:10px;padding:14px;min-width:220px;"><strong>{{ certificate.get_certificate_type_display }} · {{ certificate.display_program_title }}</strong><p>{{ certificate.certificate_number }} · {{ certificate.get_status_display }}</p><a class="btn-outline" href="{% url 'preview_certificate' certificate.id %}" target="_blank" rel="noopener">View / Generate</a> <a class="btn-outline" href="{% url 'download_certificate' certificate.id %}">Download</a>{% if can_issue_certificates %}<p><a href="{% url 'student_certificate_edit' student.id certificate.id %}">Edit</a></p><form method="post" action="{% url 'student_certificate_delete' student.id certificate.id %}" onsubmit="return confirm('Delete this certificate?');">{% csrf_token %}<button class="btn-outline" type="submit">Delete</button></form>{% endif %}</div>{% empty %}<p>No certificates issued yet.</p>{% endfor %}</div>
+  {% if can_issue_certificates %}<details style="margin-top:18px;"><summary style="cursor:pointer;font-weight:700;">Generate certificate</summary><form method="post" action="{% url 'student_certificate_issue' student.id %}" style="max-width:650px;margin-top:14px;">{% csrf_token %}{{ certificate_form.as_p }}<button class="btn-primary" type="submit">Issue certificate</button></form></details>{% endif %}
+</section>
 <div class="data-card" style="max-width:700px;">
   <h3>Add a course enrollment</h3><p style="color:#64748B;font-size:13px;">Set the full course price. Payments can then be added against the outstanding amount.</p>
   <form method="post" action="{% url 'student_finance_action' student.id %}">{% csrf_token %}<input type="hidden" name="action" value="add_enrollment">{{ enrollment_form.as_p }}<button class="btn-primary" type="submit">Add Course</button></form>
