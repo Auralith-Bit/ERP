@@ -8,7 +8,7 @@ Built with Django 4.2+.
 
 ## Quick Start
 
-### Option 1: Run locally on any Windows/macOS/Linux PC
+### Option 1: Run locally for development on one PC
 
 ```bash
 python -m venv .venv
@@ -25,15 +25,17 @@ python manage.py collectstatic --no-input
 python manage.py runserver 0.0.0.0:8000
 ```
 
-Browse to **http://localhost:8000**
+Browse to **http://localhost:8000**. This uses a local SQLite database and is suitable for development on that PC only. It does not share data with other PCs.
 
-### Option 2: Run with Docker
+### Option 2: One shared deployment for all office PCs
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
-Then open **http://localhost:8000**. Before starting, copy `.env.example` to `.env` and replace `SECRET_KEY` and `POSTGRES_PASSWORD` with random values. Use URL-safe characters for the Postgres password (for example, generate it with `openssl rand -hex 32`).
+Run Docker Compose on one always-on server PC or server. Before starting, copy `.env.example` to `.env`, set a private `SECRET_KEY` and `POSTGRES_PASSWORD`, and add the server's LAN IP or DNS name to `ALLOWED_HOSTS`. Use URL-safe random values (for example, generate them with `openssl rand -hex 32`). Open `http://<server-lan-ip>:8000` in a browser on each office PC and allow port 8000 through the server's firewall. Only the server runs the deployment; launching separate Compose stacks on desktops creates separate databases.
+
+For the first administrator, either set `BOOTSTRAP_ADMIN_USERNAME`, `BOOTSTRAP_ADMIN_EMAIL`, and a strong `BOOTSTRAP_ADMIN_PASSWORD` before the first start, or run `docker compose exec web python manage.py createsuperuser`. The bootstrap command creates the account once and never resets its password on later restarts. Remove the bootstrap password from `.env` after first start. Sign in as that administrator and use **Staff Accounts** to create and maintain staff logins and roles. Administrator accounts are managed through Django Admin.
 
 ### Environment Variables
 
@@ -49,9 +51,11 @@ Set the following environment variables in production or local dev. Production m
 | `DEBUG` | No | Set to `True` for local dev only |
 | `EMAIL_HOST_USER` | No | Gmail address for payment receipts |
 | `EMAIL_HOST_PASSWORD` | No | Gmail app password |
-| `STAFF_REGISTRATION_CODE` | No | Defaults to `AURALITH2024` |
+| `BOOTSTRAP_ADMIN_USERNAME` | No | Optional first-start administrator setup; set all three bootstrap values together |
+| `BOOTSTRAP_ADMIN_EMAIL` | No | Email for the initial administrator |
+| `BOOTSTRAP_ADMIN_PASSWORD` | No | Strong one-time bootstrap password; remove after initial setup |
 
-The container waits for the database, applies migrations, collects static files, then starts Gunicorn. The `wait_for_db` command retries connections for up to 60 seconds (`DB_WAIT_TIMEOUT` can override this). Keep the database service's persistent disk/volume enabled: the app does not create or erase records during deployment. Uploaded files are stored under `MEDIA_ROOT`; configure persistent media/object storage on hosting platforms where the app filesystem is temporary.
+The container waits for the database, applies migrations, collects static files, then starts Gunicorn. The `wait_for_db` command retries connections for up to 60 seconds (`DB_WAIT_TIMEOUT` can override this). Docker Compose stores records and uploads in persistent `postgres_data` and `media_data` volumes. Keep these volumes when rebuilding or restarting. Do not use `docker compose down -v` unless you intend to delete the shared database and uploaded files. Production mode refuses to start without `DATABASE_URL`, preventing accidental per-container SQLite storage. Hosted platforms must use persistent PostgreSQL and persistent media/object storage.
 
 To start with a clean hosted database, run `python manage.py flush --noinput` once from the provider's shell after connecting the service to the intended database. This removes all database records, including user accounts, while preserving tables and migrations; create a new administrator with `python manage.py createsuperuser` afterward. Do not run `flush` on a database containing data you need.
 
@@ -82,7 +86,8 @@ For Gmail, use an **App Password** instead of your normal Gmail password.
 ### Authentication & Validation
 - **Login form** — client-side validation (non-empty fields, min password length) with inline error messages, server-side validation fallback
 - **Register form** — client-side validation (username/email required, email format, password min 8 chars, password confirmation match), form data persists on validation errors
-- **Staff register** — same validation improvements with password length check
+- **Staff accounts** — administrator-only staff account creation, role changes, password changes, activation/deactivation, and deletion
+- Public staff self-registration is disabled; the first system administrator is provisioned explicitly
 - **Username validation** — username must not start with a digit (enforced both client-side and server-side across all registration and login forms)
 - Error messages displayed on the same page without losing form data
 
@@ -429,7 +434,9 @@ AURALITH erp/
 | `/login/` | `login_view` | Login form (GET/POST) |
 | `/logout/` | `logout_view` | Logout and redirect |
 | `/register/` | `register_view` | Student self-registration |
-| `/register/staff/` | `staff_register_view` | Staff registration (code-gated) |
+| `/register/staff/` | `staff_register_view` | Redirects signed-in administrators to staff account management |
+| `/staff-accounts/` | `staff_accounts` | Administrator-only staff login and role management |
+| `/admin/` | Django Admin | Manage system administrator accounts and Django data |
 | `/password-reset/` | `password_reset` | Enter email to receive 6-digit reset code |
 | `/password-reset/verify/` | `password_reset_verify` | Verify 6-digit code (10-min expiry) |
 | `/password-reset/confirm/` | `password_reset_confirm` | Set new password after verification |
@@ -563,11 +570,9 @@ Then visit `/admin/` to manage all models.
 
 ---
 
-## Staff Registration Code
+## Shared PC Setup
 
-Set via the `STAFF_REGISTRATION_CODE` environment variable (defaults to `AURALITH2024` in `settings.py`).
-
-Required when registering a new staff account at `/register/staff/`.
+All office desktops should open the same deployed app URL in their browsers. Configure that one app deployment to use one persistent PostgreSQL database and persistent media storage. Accounts, students, projects, payments, bills, and certificates are then visible to every PC through the shared service. Running the development SQLite setup independently on several PCs keeps separate data on each computer.
 
 ---
 

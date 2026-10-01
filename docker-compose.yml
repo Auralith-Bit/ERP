@@ -27,9 +27,15 @@ services:
       EMAIL_HOST_USER: ''
       EMAIL_HOST_PASSWORD: ''
       DEFAULT_FROM_EMAIL: 'Auralith ERP <noreply@example.com>'
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+    volumes:
+      - media_data:/app/media
     ports:
       - '8000:8000'
     restart: unless-stopped
 
 volumes:
   postgres_data:
+  media_data:

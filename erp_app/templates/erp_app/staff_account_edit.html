@@ -1,0 +1,12 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Edit Staff Account{% endblock %}
+{% block content %}
+<div class="data-card" style="max-width:700px;margin:24px auto;">
+  <h1>Edit staff account</h1><p>{{ account.username }} · update details, role, status, or set a new password.</p>
+  <form method="post">{% csrf_token %}{% if form.non_field_errors %}<div class="alert alert-error">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}<div style="margin:12px 0;">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small style="display:block;color:#64748B;margin-top:4px;">{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<small style="display:block;color:#B91C1C;">{{ error }}</small>{% endfor %}</div>{% endfor %}
+    <button class="btn-primary" type="submit">Save account</button> <a class="btn-outline" href="{% url 'staff_accounts' %}">Cancel</a>
+  </form>
+</div>
+<style>.erp-form-control{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #CBD5E1;border-radius:7px;margin-top:5px}.erp-checkbox{margin-top:8px}</style>
+{% endblock %}

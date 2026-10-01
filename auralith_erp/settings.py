@@ -104,13 +104,15 @@ if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.parse(DATABASE_URL, conn_max_age=60)
     }
-else:
+elif DEBUG:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
+else:
+    raise RuntimeError('Set DATABASE_URL to a persistent shared database for deployment.')
 
 # ---------------------------------------------------------------------------
 # Password validation
@@ -150,8 +152,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 
-# Custom staff registration code — override via env var if needed
-STAFF_REGISTRATION_CODE = os.environ.get('STAFF_REGISTRATION_CODE', 'AURALITH2024')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

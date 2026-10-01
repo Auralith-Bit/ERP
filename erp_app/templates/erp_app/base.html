@@ -75,6 +75,8 @@
                 {% endif %}
                 {% if is_super_admin %}
                 <p class="nav-label">System</p>
+                <a href="{% url 'staff_accounts' %}" {% if request.resolver_match.url_name == 'staff_accounts' or request.resolver_match.url_name == 'staff_account_edit' %}class="active"{% endif %}><i class="ph ph-user-gear"></i> Staff Accounts</a>
+                {% if request.user.is_superuser %}<a href="/admin/auth/user/"><i class="ph ph-shield-check"></i> Administrator Accounts</a>{% endif %}
                 <a href="{% url 'workbench' %}" {% if request.resolver_match.url_name == 'workbench' %}class="active"{% endif %}><i class="ph ph-database"></i> DB Workbench</a>
                 {% endif %}
             </nav>

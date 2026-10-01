@@ -1,0 +1,26 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Staff Accounts{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px;border:0;height:auto;background:transparent;">
+  <div class="header-info"><h1>Staff Accounts</h1><p>Create and manage staff logins and their ERP roles. Changes are saved to the configured database.</p></div>
+</header>
+<div class="main-grid" style="align-items:start;">
+  <section class="data-card">
+    <h3>Create staff account</h3>
+    <form method="post">{% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-error">{{ form.non_field_errors }}</div>{% endif %}
+      {% for field in form %}<div style="margin:12px 0;">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small style="display:block;color:#64748B;margin-top:4px;">{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<small style="display:block;color:#B91C1C;">{{ error }}</small>{% endfor %}</div>{% endfor %}
+      <button class="btn-primary" type="submit">Create account</button>
+    </form>
+  </section>
+  <section class="data-card" style="padding:0;overflow-x:auto;">
+    <div style="padding:18px 20px 0;"><h3>Staff logins</h3></div>
+    <table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+      {% for account in accounts %}<tr><td>{{ account.get_full_name|default:account.username }}</td><td>{{ account.username }}</td><td>{{ account.email|default:'—' }}</td><td>{% for group in account.groups.all %}{% if group.name == 'super_admin' %}Administrator{% elif group.name == 'teaching_staff' %}Teaching staff{% elif group.name == 'normal_staff' %}Office staff{% endif %}{% endfor %}</td><td>{% if account.is_active %}Active{% else %}Inactive{% endif %}</td><td><a class="btn-outline" href="{% url 'staff_account_edit' account.id %}">Edit</a>{% if account.id != request.user.id %}<form method="post" action="{% url 'staff_account_delete' account.id %}" style="display:inline;" onsubmit="return confirm('Permanently delete this staff login?');">{% csrf_token %}<button class="btn-outline" type="submit">Delete</button></form>{% endif %}</td></tr>
+      {% empty %}<tr><td colspan="6" style="text-align:center;padding:24px;">No staff accounts yet. Create one with the form.</td></tr>{% endfor %}
+    </tbody></table>
+  </section>
+</div>
+<section class="data-card" style="margin-top:20px;"><h3>Administrator account</h3><p>The initial system administrator is created with <code>python manage.py createsuperuser</code> or the optional bootstrap environment variables documented for deployment. The root administrator's login and password are managed in Django Admin.</p>{% if request.user.is_superuser %}<a class="btn-outline" href="/admin/auth/user/">Manage administrator accounts</a> <a class="btn-outline" href="/admin/password_change/">Change my admin password</a>{% endif %}</section>
+<style>.erp-form-control{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #CBD5E1;border-radius:7px;margin-top:5px}.erp-checkbox{margin-top:8px}td form{margin-left:5px}</style>
+{% endblock %}

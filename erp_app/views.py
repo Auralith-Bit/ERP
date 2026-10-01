@@ -28,7 +28,7 @@ from django.core.files.base import ContentFile
 from django.utils.html import strip_tags
 from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate, CourseEnrollment, Payment, PasswordResetCode, Attendance
 from .models import ProjectPayment, Bill
-from .forms import CourseEnrollmentForm, EnrollmentFeeForm, PaymentForm, ProjectForm, ProjectPaymentForm, StudentCertificateForm, StudentForm
+from .forms import CourseEnrollmentForm, EnrollmentFeeForm, PaymentForm, ProjectForm, ProjectPaymentForm, StaffAccountForm, StudentCertificateForm, StudentForm
 logger = logging.getLogger(__name__)
 from .roles import (get_user_roles, has_role,
     SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF, STUDENT, INTERN,
@@ -106,48 +106,76 @@ def register_view(request):
             messages.error(request, error)
     return render(request, 'erp_app/register.html', {'form_data': form_data})
 
-    #staff registration view with code verification and role assignment
+# Legacy staff signup URL now requires an authenticated administrator.
+@login_required
 def staff_register_view(request):
-    if request.user.is_authenticated:
+    if not has_role(request.user, SUPER_ADMIN):
+        messages.error(request, 'Only an administrator can create staff accounts.')
         return redirect('dashboard')
-    if request.method == 'POST':
-        username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '')
-        email = request.POST.get('email', '').strip()
-        staff_type = request.POST.get('staff_type', '')
-        staff_code = request.POST.get('staff_code', '').strip()
+    return redirect('staff_accounts')
 
-        expected_code = getattr(settings, 'STAFF_REGISTRATION_CODE', 'STAFF2024')
-        errors = []
-        if staff_code != expected_code:
-            errors.append('Invalid staff registration code.')
-        if not username:
-            errors.append('Username is required.')
-        elif username[0].isdigit():
-            errors.append('Username must not start with a number.')
-        elif User.objects.filter(username=username).exists():
-            errors.append('Username already exists.')
-        if not password:
-            errors.append('Password is required.')
-        elif len(password) < 8:
-            errors.append('Password must be at least 8 characters.')
-        if staff_type not in ('teaching', 'normal'):
-            errors.append('Invalid staff type.')
-        if errors:
-            for error in errors:
-                messages.error(request, error)
-            return render(request, 'erp_app/staff_register.html')
 
-        user = User.objects.create_user(username=username, password=password, email=email)
-        group_name = 'teaching_staff' if staff_type == 'teaching' else 'normal_staff'
-        try:
-            group = Group.objects.get(name=group_name)
-            user.groups.add(group)
-        except Group.DoesNotExist:
-            pass
-        messages.success(request, f'{staff_type.title()} staff account created. Please sign in.')
-        return redirect('login')
-    return render(request, 'erp_app/staff_register.html')
+@login_required
+@require_http_methods(['GET', 'POST'])
+def staff_accounts(request):
+    if not has_role(request.user, SUPER_ADMIN):
+        messages.error(request, 'Only an administrator can manage staff accounts.')
+        return redirect('dashboard')
+    form = StaffAccountForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        with transaction.atomic():
+            account = form.save()
+        messages.success(request, f'{account.get_full_name() or account.username} account created.')
+        return redirect('staff_accounts')
+    accounts = User.objects.filter(groups__name__in=['super_admin', 'teaching_staff', 'normal_staff']).exclude(is_superuser=True).distinct().prefetch_related('groups').order_by('username')
+    return render(request, 'erp_app/staff_accounts.html', {
+        'form': form,
+        'accounts': accounts,
+        'is_admin': True,
+        'django_admin_url': '/admin/auth/user/' if request.user.is_superuser else None,
+    })
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def staff_account_edit(request, user_id):
+    if not has_role(request.user, SUPER_ADMIN):
+        messages.error(request, 'Only an administrator can manage staff accounts.')
+        return redirect('dashboard')
+    account = get_object_or_404(
+        User.objects.filter(groups__name__in=['super_admin', 'teaching_staff', 'normal_staff'], is_superuser=False).distinct(),
+        pk=user_id,
+    )
+    form = StaffAccountForm(request.POST or None, instance=account)
+    if account.pk == request.user.pk:
+        form.fields['is_active'].disabled = True
+    if request.method == 'POST' and form.is_valid():
+        with transaction.atomic():
+            account = form.save()
+        messages.success(request, f'{account.get_full_name() or account.username} account updated.')
+        return redirect('staff_accounts')
+    return render(request, 'erp_app/staff_account_edit.html', {'form': form, 'account': account, 'is_admin': True})
+
+
+@login_required
+@require_POST
+def staff_account_delete(request, user_id):
+    if not has_role(request.user, SUPER_ADMIN):
+        messages.error(request, 'Only an administrator can manage staff accounts.')
+        return redirect('dashboard')
+    account = get_object_or_404(
+        User.objects.filter(groups__name__in=['super_admin', 'teaching_staff', 'normal_staff'], is_superuser=False).distinct(),
+        pk=user_id,
+    )
+    if account.pk == request.user.pk:
+        messages.error(request, 'You cannot delete the account you are signed in with.')
+    elif hasattr(account, 'student_profile'):
+        messages.error(request, 'This login is linked to a student record. Deactivate it instead to preserve ERP history.')
+    else:
+        name = account.get_full_name() or account.username
+        account.delete()
+        messages.success(request, f'{name} account deleted.')
+    return redirect('staff_accounts')
 
 
 @login_required

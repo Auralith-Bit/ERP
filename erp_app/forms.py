@@ -1,6 +1,86 @@
 from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
 
 from .models import Certificate, CourseEnrollment, Payment, Project, ProjectPayment, Student
+
+User = get_user_model()
+
+
+class StaffAccountForm(forms.ModelForm):
+    role = forms.ChoiceField(choices=[
+        ('super_admin', 'Administrator'),
+        ('teaching_staff', 'Teaching staff'),
+        ('normal_staff', 'Office staff'),
+    ])
+    password = forms.CharField(required=False, widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}), help_text='Leave blank when editing to keep the current password.')
+    confirm_password = forms.CharField(required=False, widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}), label='Confirm password')
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'first_name', 'last_name', 'is_active']
+        labels = {'is_active': 'Account is active'}
+
+    def __init__(self, *args, **kwargs):
+        self.is_create = kwargs.get('instance') is None
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault('class', 'erp-form-control')
+        self.fields['role'].widget.attrs['class'] = 'erp-form-control'
+        self.fields['is_active'].widget.attrs['class'] = 'erp-checkbox'
+        if self.instance and self.instance.pk:
+            self.fields['role'].initial = self.instance.groups.filter(name__in=['super_admin', 'teaching_staff', 'normal_staff']).values_list('name', flat=True).first() or 'normal_staff'
+        else:
+            self.fields['role'].initial = 'normal_staff'
+        self.fields['password'].required = self.is_create
+        self.fields['confirm_password'].required = self.is_create
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        users = User.objects.filter(username__iexact=username)
+        if self.instance.pk:
+            users = users.exclude(pk=self.instance.pk)
+        if users.exists():
+            raise forms.ValidationError('That username is already in use.')
+        if username and username[0].isdigit():
+            raise forms.ValidationError('Username must not start with a number.')
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip()
+        users = User.objects.filter(email__iexact=email)
+        if self.instance.pk:
+            users = users.exclude(pk=self.instance.pk)
+        if users.exists():
+            raise forms.ValidationError('That email address is already in use.')
+        return email
+
+    def clean(self):
+        cleaned = super().clean()
+        password = cleaned.get('password')
+        confirmation = cleaned.get('confirm_password')
+        if password or confirmation:
+            if password != confirmation:
+                self.add_error('confirm_password', 'Passwords do not match.')
+            elif password:
+                try:
+                    validate_password(password, self.instance if self.instance.pk else None)
+                except ValidationError as error:
+                    self.add_error('password', error)
+        return cleaned
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        password = self.cleaned_data.get('password')
+        if password:
+            user.set_password(password)
+        if commit:
+            user.save()
+            group, _ = Group.objects.get_or_create(name=self.cleaned_data['role'])
+            user.groups.set([group])
+        return user
 
 
 class ERPForm(forms.ModelForm):
