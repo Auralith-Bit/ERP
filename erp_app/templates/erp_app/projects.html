@@ -1,0 +1,33 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Client Projects{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px;border:0;height:auto;background:transparent;">
+  <div class="header-info"><h1>Client Projects</h1><p>Track client scope, agreed price, payments received, and outstanding balances.</p></div>
+  <a class="btn-primary" href="#new-project"><i class="ph ph-plus"></i> Add Client Project</a>
+</header>
+<div class="stats-grid" style="margin-bottom:22px;">
+  <div class="stat-card"><span>Contract value</span><h3>Rs. {{ totals.price|floatformat:2 }}</h3></div>
+  <div class="stat-card"><span>Payments received</span><h3>Rs. {{ totals.paid|floatformat:2 }}</h3></div>
+  <div class="stat-card primary"><span>Outstanding</span><h3>Rs. {{ totals.remaining|floatformat:2 }}</h3></div>
+</div>
+<div class="data-card" style="padding:0;overflow-x:auto;margin-bottom:24px;">
+  <table><thead><tr><th>Project / Client</th><th>About the project</th><th>Price</th><th>Received</th><th>Remaining</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+    {% for project in projects %}
+    <tr>
+      <td><strong>{{ project.name }}</strong><small style="display:block;color:#64748B;">{{ project.client|default:'Client not set' }}</small></td>
+      <td style="min-width:220px;max-width:350px;">{{ project.description|default:'No project scope entered.'|truncatewords:22 }}</td>
+      <td>Rs. {{ project.budget|floatformat:2 }}</td><td>Rs. {{ project.paid_total|floatformat:2 }}</td><td><strong>Rs. {{ project.remaining_total|floatformat:2 }}</strong></td>
+      <td>{{ project.get_status_display }}<small style="display:block;color:#64748B;">{{ project.progress_percentage }}% complete</small></td>
+      <td style="white-space:nowrap;"><a class="btn-text" href="{% url 'project_detail' project.id %}">View</a><a class="btn-text" href="{% url 'project_edit' project.id %}">Edit</a>
+        <form method="post" action="{% url 'project_delete' project.id %}" style="display:inline;" onsubmit="return confirm('Delete {{ project.name|escapejs }} and its payment history?');">{% csrf_token %}<button class="btn-text" type="submit" style="color:#DC2626;">Delete</button></form>
+      </td>
+    </tr>
+    {% empty %}<tr><td colspan="7" style="padding:30px;text-align:center;">No client projects yet.</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+<div class="data-card" id="new-project" style="max-width:850px;">
+  <h3>Add a client project</h3>
+  <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn-primary" type="submit">Save Project</button></form>
+</div>
+<style>.erp-form-control{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;}form p{margin:12px 0;}form p label{display:block;font-weight:600;font-size:13px;margin-bottom:5px;}</style>
+{% endblock %}

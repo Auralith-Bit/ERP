@@ -1,0 +1,37 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Students{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px;border:0;height:auto;background:transparent;">
+  <div class="header-info"><h1>Student Management</h1><p>Manage student records and track course fees, payments, and balances.</p></div>
+  <a class="btn-primary" href="{% url 'student_add' %}"><i class="ph ph-plus"></i> Add Student</a>
+</header>
+<form method="get" class="data-card" style="display:flex;gap:10px;align-items:center;margin-bottom:18px;padding:14px;">
+  <input class="erp-form-control" type="search" name="q" value="{{ query }}" placeholder="Search name, email, or phone" style="max-width:360px;">
+  <button class="btn-outline" type="submit">Search</button>
+  {% if query %}<a href="{% url 'students' %}">Clear</a>{% endif %}
+</form>
+<div class="data-card" style="overflow-x:auto;padding:0;">
+  <table>
+    <thead><tr><th>Student</th><th>Phone</th><th>Courses</th><th>Total fees</th><th>Paid</th><th>Remaining</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for student in students %}
+      <tr>
+        <td><strong>{{ student.name }}</strong><small style="display:block;color:#64748B;">{{ student.email }}</small></td>
+        <td>{{ student.phone|default:'—' }}</td>
+        <td>{{ student.enrollments.all|length }}</td>
+        <td>Rs. {{ student.total_fees|floatformat:2 }}</td>
+        <td>Rs. {{ student.paid_total|floatformat:2 }}</td>
+        <td><strong>Rs. {{ student.remaining_total|floatformat:2 }}</strong></td>
+        <td style="white-space:nowrap;">
+          <a class="btn-text" href="{% url 'student_detail' student.id %}">View</a>
+          <a class="btn-text" href="{% url 'student_edit' student.id %}">Edit</a>
+          <form method="post" action="{% url 'student_delete' student.id %}" style="display:inline;" onsubmit="return confirm('Delete {{ student.name|escapejs }} and all enrollment, payment, attendance, and certificate records? This cannot be undone.');">
+            {% csrf_token %}<button class="btn-text" style="color:#DC2626;" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}<tr><td colspan="7" style="text-align:center;padding:32px;">No students found. Add a student to start tracking enrollment and fees.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

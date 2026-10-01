@@ -1,0 +1,22 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}{% if is_edit %}Edit Student{% else %}Add Student{% endif %}{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px;border:0;height:auto;background:transparent;">
+  <div class="header-info"><h1>{% if is_edit %}Edit Student{% else %}Add Student{% endif %}</h1><p>Student details and optional initial course enrollment.</p></div>
+  <a class="btn-outline" href="{% if student %}{% url 'student_detail' student.id %}{% else %}{% url 'students' %}{% endif %}">Back</a>
+</header>
+<div class="data-card" style="max-width:800px;">
+  <form method="post">{% csrf_token %}
+    <h3>Student details</h3>
+    {{ form.as_p }}
+    {% if not is_edit %}
+    <hr style="margin:22px 0;border:0;border-top:1px solid #E2E8F0;">
+    <h3>Initial course enrollment (optional)</h3>
+    <p style="color:#64748B;font-size:13px;">Set the course price now; record payments from the student profile after saving.</p>
+    {{ enrollment_form.as_p }}
+    {% endif %}
+    <button class="btn-primary" type="submit">{% if is_edit %}Save Changes{% else %}Add Student{% endif %}</button>
+  </form>
+</div>
+<style>.erp-form-control{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;color:#0F172A;}form p{margin:12px 0;}form p label{display:block;font-weight:600;font-size:13px;margin-bottom:5px;}form .helptext{display:block;color:#64748B;font-size:12px;}</style>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}{% if is_edit %}Edit Project{% else %}Add Project{% endif %}{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px;border:0;height:auto;background:transparent;">
+  <div class="header-info"><h1>Edit Client Project</h1><p>Update client details, scope, contract price, and delivery status.</p></div>
+  <a class="btn-outline" href="{% url 'project_detail' project.id %}">Back</a>
+</header>
+<div class="data-card" style="max-width:850px;">
+  <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn-primary" type="submit">Save Changes</button></form>
+</div>
+<style>.erp-form-control{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;}form p{margin:12px 0;}form p label{display:block;font-weight:600;font-size:13px;margin-bottom:5px;}</style>
+{% endblock %}

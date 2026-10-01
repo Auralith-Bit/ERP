@@ -1,0 +1,44 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}{{ student.name }}{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px;border:0;height:auto;background:transparent;">
+  <div class="header-info"><h1>{{ student.name }}</h1><p>{{ student.email }}{% if student.phone %} · {{ student.phone }}{% endif %}</p></div>
+  <div style="display:flex;gap:8px;"><a class="btn-outline" href="{% url 'students' %}">Students</a><a class="btn-primary" href="{% url 'student_edit' student.id %}">Edit Student</a></div>
+</header>
+<div class="stats-grid" style="margin-bottom:22px;">
+  <div class="stat-card"><span>Total course fees</span><h3>Rs. {{ total_fees|floatformat:2 }}</h3></div>
+  <div class="stat-card"><span>Paid</span><h3>Rs. {{ paid_total|floatformat:2 }}</h3></div>
+  <div class="stat-card primary"><span>Remaining</span><h3>Rs. {{ remaining_total|floatformat:2 }}</h3></div>
+</div>
+<div class="data-card" style="padding:0;overflow-x:auto;margin-bottom:22px;">
+  <table><thead><tr><th>Course</th><th>Enrollment</th><th>Fee</th><th>Paid</th><th>Remaining</th><th>Payments</th></tr></thead><tbody>
+    {% for enrollment in enrollments %}
+    <tr>
+      <td><strong>{{ enrollment.course.name }}</strong><small style="display:block;color:#64748B;">{{ enrollment.get_status_display }}</small></td>
+      <td>{{ enrollment.enrolled_date }}</td><td>Rs. {{ enrollment.total_fee|floatformat:2 }}</td><td>Rs. {{ enrollment.paid_amount|floatformat:2 }}</td><td><strong>Rs. {{ enrollment.remaining_amount|floatformat:2 }}</strong></td>
+      <td>
+        <details><summary style="cursor:pointer;color:#1A4B8D;">Manage</summary>
+          <form method="post" action="{% url 'student_finance_action' student.id %}" style="padding:10px 0;min-width:230px;">{% csrf_token %}
+            <input type="hidden" name="action" value="update_fee"><input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
+            <label>Course fee</label><input class="erp-form-control" type="number" name="total_fee" min="0" step="0.01" value="{{ enrollment.total_fee }}" required>
+            <button class="btn-outline" type="submit" style="margin-top:7px;">Update fee</button>
+          </form>
+          <form method="post" action="{% url 'student_finance_action' student.id %}" style="padding:10px 0;min-width:230px;">{% csrf_token %}
+            <input type="hidden" name="action" value="record_payment"><input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
+            <label>Record payment (up to Rs. {{ enrollment.remaining_amount|floatformat:2 }})</label>
+            {{ payment_form.as_p }}
+            <button class="btn-primary" type="submit">Record Payment</button>
+          </form>
+          <ul style="padding-left:18px;">{% for payment in enrollment.payments.all %}<li>Rs. {{ payment.amount|floatformat:2 }} · {{ payment.payment_date|date:'M d, Y' }}{% if payment.transaction_id %} · {{ payment.transaction_id }}{% endif %}</li>{% empty %}<li>No payments recorded.</li>{% endfor %}</ul>
+        </details>
+      </td>
+    </tr>
+    {% empty %}<tr><td colspan="6" style="padding:24px;text-align:center;">No course enrollments yet.</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+<div class="data-card" style="max-width:700px;">
+  <h3>Add a course enrollment</h3><p style="color:#64748B;font-size:13px;">Set the full course price. Payments can then be added against the outstanding amount.</p>
+  <form method="post" action="{% url 'student_finance_action' student.id %}">{% csrf_token %}<input type="hidden" name="action" value="add_enrollment">{{ enrollment_form.as_p }}<button class="btn-primary" type="submit">Add Course</button></form>
+</div>
+<style>.erp-form-control{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #CBD5E1;border-radius:7px;}td form p{margin:8px 0;}td form p label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;}</style>
+{% endblock %}

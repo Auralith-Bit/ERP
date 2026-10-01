@@ -119,6 +119,7 @@ For Gmail, use an **App Password** instead of your normal Gmail password.
 - **My Courses page** — shows "No Enrolled Courses" message with info alert when a student has no course enrollments (instead of a generic redirect)
 
 ### People Management
+- Student manager with add, view, edit, and delete actions; course enrollment fees; payment history; and per-course and total outstanding balances
 - **Students** — self-registration, enrollment in courses, intern promotion. New student registrations automatically assigned to the `student` auth Group.
 - **Mentors** — profile cards with specialization, bio, and course count
 - **Employees** — filterable table by type (Intern/Staff/Mentor/Admin), department assignment
@@ -142,9 +143,9 @@ For Gmail, use an **App Password** instead of your normal Gmail password.
 - QR verification endpoint
 
 ### Financial Dashboard
-- Budget & fees page with fee structure table (client-side localStorage CRUD)
-- Revenue, pending, collected KPIs
-- Project budget allocation with progress bars
+- Database-backed budget & fees summary for student course fees/payments and client project prices/payments
+- Client project manager tracks the client, scope, agreed price, delivery progress, payment history, and remaining balance
+- Payments cannot exceed the recorded course or project balance
 
 ### Notification System
 - Admin-created notifications displayed to all users
@@ -437,6 +438,11 @@ AURALITH erp/
 | Route | View | Description |
 |-------|------|-------------|
 | `/dashboard/` | `dashboard` | KPI stats, courses table, projects |
+| `/students/` | `students` | Student records and fee balances |
+| `/students/add/` | `student_add` | Add a student and optional initial course enrollment |
+| `/students/<id>/` | `student_detail` | Enrollment, fee, and payment details |
+| `/client-projects/` | `projects` | Client project list and financial totals |
+| `/client-projects/<id>/` | `project_detail` | Scope, project price, payment history, and balance |
 | `/courses/` | `courses` | Course card grid |
 | `/courses/&lt;id&gt;/syllabus/` | `course_syllabus` | Syllabus view/download |
 | `/mentors/` | `mentors` | Mentor profile cards |

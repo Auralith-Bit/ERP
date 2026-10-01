@@ -3,12 +3,24 @@ from django.db.models import Count
 from django.template.loader import render_to_string
 from django.core.mail import send_mail
 from django.utils.html import format_html, strip_tags
-from .models import Mentor, Department, Course, Student, CourseEnrollment, Employee, Project, Notification, IDCard, Certificate, Payment, Attendance
+from .models import Mentor, Department, Course, Student, CourseEnrollment, Employee, Project, ProjectPayment, Notification, IDCard, Certificate, Payment, Attendance
 
 
 class CourseEnrollmentInline(admin.TabularInline):
     model = CourseEnrollment
     extra = 1
+
+
+class StudentEnrollmentInline(admin.TabularInline):
+    model = CourseEnrollment
+    fk_name = 'student'
+    extra = 0
+
+
+class ProjectPaymentInline(admin.TabularInline):
+    model = ProjectPayment
+    extra = 0
+    readonly_fields = ['payment_date', 'recorded_by']
 
 
 @admin.register(Mentor)
@@ -72,6 +84,7 @@ class StudentAdmin(admin.ModelAdmin):
     list_display = ['name', 'email', 'phone', 'is_intern', 'enrolled_date', 'course_count']
     list_filter = ['is_intern']
     search_fields = ['name', 'email']
+    inlines = [StudentEnrollmentInline]
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(course_count=Count('enrollments'))
@@ -154,7 +167,15 @@ class EmployeeAdmin(admin.ModelAdmin):
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ['name', 'client', 'status', 'progress_percentage']
     list_filter = ['status']
-    search_fields = ['name', 'client']
+    search_fields = ['name', 'client', 'description']
+    inlines = [ProjectPaymentInline]
+
+
+@admin.register(ProjectPayment)
+class ProjectPaymentAdmin(admin.ModelAdmin):
+    list_display = ['project', 'amount', 'payment_date', 'reference', 'recorded_by']
+    list_filter = ['payment_date']
+    search_fields = ['project__name', 'project__client', 'reference']
 
 
 @admin.register(Certificate)

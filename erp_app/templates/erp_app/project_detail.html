@@ -1,0 +1,32 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px;border:0;height:auto;background:transparent;">
+  <div class="header-info"><h1>{{ project.name }}</h1><p>{{ project.client|default:'Client not set' }} · {{ project.get_status_display }} · {{ project.progress_percentage }}% complete</p></div>
+  <div style="display:flex;gap:8px;"><a class="btn-outline" href="{% url 'projects' %}">All Projects</a><a class="btn-primary" href="{% url 'project_edit' project.id %}">Edit Project</a></div>
+</header>
+<div class="stats-grid" style="margin-bottom:22px;">
+  <div class="stat-card"><span>Agreed price</span><h3>Rs. {{ project.budget|floatformat:2 }}</h3></div>
+  <div class="stat-card"><span>Received</span><h3>Rs. {{ project.paid_total|floatformat:2 }}</h3></div>
+  <div class="stat-card primary"><span>Remaining</span><h3>Rs. {{ project.remaining_total|floatformat:2 }}</h3></div>
+</div>
+<div class="data-card" style="margin-bottom:22px;">
+  <h3>Project scope and client details</h3>
+  <p style="white-space:pre-wrap;line-height:1.7;">{{ project.description|default:'No project scope has been entered.' }}</p>
+  <small style="color:#64748B;">Started {{ project.start_date|date:'M d, Y' }}</small>
+</div>
+<div class="main-grid">
+  <div class="data-card" style="padding:0;overflow-x:auto;">
+    <div style="padding:18px 20px 0;"><h3>Payment history</h3></div>
+    <table><thead><tr><th>Date</th><th>Amount</th><th>Reference</th><th>Remarks</th><th>Recorded by</th></tr></thead><tbody>
+      {% for payment in project.payments.all %}<tr><td>{{ payment.payment_date|date:'M d, Y H:i' }}</td><td>Rs. {{ payment.amount|floatformat:2 }}</td><td>{{ payment.reference|default:'—' }}</td><td>{{ payment.remarks|default:'—' }}</td><td>{{ payment.recorded_by|default:'—' }}</td></tr>
+      {% empty %}<tr><td colspan="5" style="text-align:center;padding:24px;">No client payments recorded.</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+  <div class="data-card">
+    <h3>Record client payment</h3><p style="color:#64748B;font-size:13px;">Outstanding: Rs. {{ project.remaining_total|floatformat:2 }}</p>
+    <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn-primary" type="submit" {% if project.remaining_total <= 0 %}disabled{% endif %}>Record Payment</button></form>
+  </div>
+</div>
+<style>.erp-form-control{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;}form p{margin:12px 0;}form p label{display:block;font-weight:600;font-size:13px;margin-bottom:5px;}</style>
+{% endblock %}

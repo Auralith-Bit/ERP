@@ -11,7 +11,8 @@ from datetime import datetime, date as EnglishDate
 from .nepali_utils import today_bs
 from PIL import Image
 from django.conf import settings
-from django.db.models import Count, Sum, Q
+from django.db import IntegrityError, transaction
+from django.db.models import Count, Prefetch, Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -21,11 +22,13 @@ from django.apps import apps
 from django.urls import reverse, NoReverseMatch
 from django.http import JsonResponse, HttpResponse, FileResponse
 from django.template.loader import render_to_string
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.core.mail import send_mail
 from django.core.files.base import ContentFile
 from django.utils.html import strip_tags
 from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate, CourseEnrollment, Payment, PasswordResetCode, Attendance
+from .models import ProjectPayment
+from .forms import CourseEnrollmentForm, EnrollmentFeeForm, PaymentForm, ProjectForm, ProjectPaymentForm, StudentForm
 logger = logging.getLogger(__name__)
 from .roles import (get_user_roles, has_role,
     SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF, STUDENT, INTERN,
@@ -248,6 +251,162 @@ def dashboard(request):
         'is_admin': has_role(request.user, SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF),
     }
     return render(request, 'erp_app/dashboard.html', context)
+
+
+def _can_manage_company_records(user):
+    return has_role(user, SUPER_ADMIN, NORMAL_STAFF)
+
+
+@login_required
+def students(request):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to manage students.')
+        return redirect('dashboard')
+    query = request.GET.get('q', '').strip()
+    items = Student.objects.prefetch_related(
+        Prefetch('enrollments', queryset=CourseEnrollment.objects.prefetch_related('payments'))
+    )
+    if query:
+        items = items.filter(Q(name__icontains=query) | Q(email__icontains=query) | Q(phone__icontains=query))
+    for student in items:
+        enrollments = list(student.enrollments.all())
+        for enrollment in enrollments:
+            enrollment.paid_amount = sum((payment.amount for payment in enrollment.payments.all()), 0)
+        student.total_fees = sum((enrollment.total_fee for enrollment in enrollments), 0)
+        student.paid_total = sum((enrollment.paid_amount for enrollment in enrollments), 0)
+        student.remaining_total = max(student.total_fees - student.paid_total, 0)
+    return render(request, 'erp_app/students.html', {'students': items, 'query': query, 'is_admin': True})
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def student_add(request):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to add students.')
+        return redirect('dashboard')
+    student_form = StudentForm(request.POST or None)
+    enrollment_form = CourseEnrollmentForm(request.POST or None, prefix='enrollment')
+    if request.method == 'POST' and student_form.is_valid():
+        has_course = bool(request.POST.get('enrollment-course'))
+        if has_course and not enrollment_form.is_valid():
+            return render(request, 'erp_app/student_form.html', {'form': student_form, 'enrollment_form': enrollment_form, 'is_edit': False})
+        with transaction.atomic():
+            student = student_form.save()
+            if has_course:
+                enrollment = enrollment_form.save(commit=False)
+                enrollment.student = student
+                enrollment.save()
+        messages.success(request, f'Student {student.name} was added.')
+        return redirect('student_detail', student_id=student.id)
+    return render(request, 'erp_app/student_form.html', {'form': student_form, 'enrollment_form': enrollment_form, 'is_edit': False})
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def student_edit(request, student_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to edit students.')
+        return redirect('dashboard')
+    student = get_object_or_404(Student, pk=student_id)
+    form = StudentForm(request.POST or None, instance=student)
+    if request.method == 'POST' and form.is_valid():
+        with transaction.atomic():
+            student = form.save()
+            if student.user:
+                student.user.email = student.email
+                student.user.first_name = student.name.split(' ', 1)[0]
+                student.user.last_name = student.name.split(' ', 1)[1] if ' ' in student.name else ''
+                student.user.save(update_fields=['email', 'first_name', 'last_name'])
+        messages.success(request, f'Student {student.name} was updated.')
+        return redirect('student_detail', student_id=student.id)
+    return render(request, 'erp_app/student_form.html', {'form': form, 'is_edit': True, 'student': student})
+
+
+@login_required
+def student_detail(request, student_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to view student financial records.')
+        return redirect('dashboard')
+    student = get_object_or_404(Student, pk=student_id)
+    enrollments = CourseEnrollment.objects.filter(student=student).select_related('course').prefetch_related('payments')
+    total_fees = paid_total = 0
+    for enrollment in enrollments:
+        enrollment.paid_amount = sum((payment.amount for payment in enrollment.payments.all()), 0)
+        enrollment.remaining_amount = max(enrollment.total_fee - enrollment.paid_amount, 0)
+        total_fees += enrollment.total_fee
+        paid_total += enrollment.paid_amount
+    return render(request, 'erp_app/student_detail.html', {
+        'student': student, 'enrollments': enrollments, 'total_fees': total_fees,
+        'paid_total': paid_total, 'remaining_total': max(total_fees - paid_total, 0),
+        'enrollment_form': CourseEnrollmentForm(), 'payment_form': PaymentForm(), 'is_admin': True,
+    })
+
+
+@login_required
+@require_POST
+def student_finance_action(request, student_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to change student fees or payments.')
+        return redirect('dashboard')
+    student = get_object_or_404(Student, pk=student_id)
+    action = request.POST.get('action')
+    if action == 'add_enrollment':
+        form = CourseEnrollmentForm(request.POST)
+        if form.is_valid():
+            enrollment = form.save(commit=False)
+            enrollment.student = student
+            try:
+                with transaction.atomic():
+                    enrollment.save()
+                messages.success(request, f'{enrollment.course.name} was added to {student.name}.')
+            except IntegrityError:
+                messages.error(request, 'This student is already enrolled in that course.')
+        else:
+            messages.error(request, form.errors.as_text())
+    elif action in ('record_payment', 'update_fee'):
+        form = PaymentForm(request.POST) if action == 'record_payment' else EnrollmentFeeForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                enrollment = get_object_or_404(CourseEnrollment.objects.select_for_update(), pk=request.POST.get('enrollment_id'), student=student)
+                paid = enrollment.total_paid()
+                if action == 'record_payment':
+                    remaining = max(enrollment.total_fee - paid, 0)
+                    if form.cleaned_data['amount'] > remaining:
+                        messages.error(request, f'Payment exceeds the remaining balance of Rs. {remaining}.')
+                    else:
+                        payment = form.save(commit=False)
+                        payment.enrollment = enrollment
+                        payment.save()
+                        messages.success(request, f'Payment of Rs. {payment.amount} recorded.')
+                elif form.cleaned_data['total_fee'] < paid:
+                    messages.error(request, 'Course fee cannot be less than the amount already paid.')
+                else:
+                    enrollment.total_fee = form.cleaned_data['total_fee']
+                    enrollment.save(update_fields=['total_fee'])
+                    messages.success(request, 'Course fee updated.')
+        else:
+            messages.error(request, form.errors.as_text())
+    else:
+        messages.error(request, 'Choose a valid student finance action.')
+    return redirect('student_detail', student_id=student.id)
+
+
+@login_required
+@require_POST
+def student_delete(request, student_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to delete students.')
+        return redirect('dashboard')
+    student = get_object_or_404(Student, pk=student_id)
+    name = student.name
+    for card in student.id_cards.all():
+        card.file.delete(save=False)
+    for certificate in student.certificates.all():
+        if certificate.file:
+            certificate.file.delete(save=False)
+    student.delete()
+    messages.success(request, f'Student {name} and associated enrollment/payment records were deleted.')
+    return redirect('students')
 
 @login_required
 def courses(request):
@@ -534,14 +693,112 @@ def delete_id_card(request, card_id):
 
 @login_required
 def budget_fees(request):
-    courses = Course.objects.all()
-    projects = Project.objects.all()
+    enrollments = CourseEnrollment.objects.prefetch_related('payments')
+    course_fees = sum((enrollment.total_fee for enrollment in enrollments), 0)
+    student_payments = sum((payment.amount for enrollment in enrollments for payment in enrollment.payments.all()), 0)
+    project_list = Project.objects.prefetch_related('payments')
+    projects = []
+    for project in project_list:
+        project.paid_total = sum((payment.amount for payment in project.payments.all()), 0)
+        project.remaining_total = max(project.budget - project.paid_total, 0)
+        projects.append(project)
+    project_value = sum((project.budget for project in projects), 0)
+    project_paid = sum((project.paid_total for project in projects), 0)
     context = {
-        'courses': courses,
+        'course_fees': course_fees,
+        'student_payments': student_payments,
+        'student_remaining': max(course_fees - student_payments, 0),
         'projects': projects,
+        'project_value': project_value,
+        'project_paid': project_paid,
+        'project_remaining': sum((project.remaining_total for project in projects), 0),
         'is_admin': has_role(request.user, SUPER_ADMIN, NORMAL_STAFF),
     }
     return render(request, 'erp_app/budget_fees.html', context)
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def projects(request):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to manage client projects.')
+        return redirect('dashboard')
+    form = ProjectForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        project = form.save()
+        messages.success(request, f'Client project {project.name} was added.')
+        return redirect('project_detail', project_id=project.id)
+    items = Project.objects.prefetch_related('payments')
+    totals = {'price': 0, 'paid': 0, 'remaining': 0}
+    for project in items:
+        project.paid_total = sum((payment.amount for payment in project.payments.all()), 0)
+        project.remaining_total = max(project.budget - project.paid_total, 0)
+        totals['price'] += project.budget
+        totals['paid'] += project.paid_total
+        totals['remaining'] += project.remaining_total
+    return render(request, 'erp_app/projects.html', {'projects': items, 'form': form, 'totals': totals, 'is_admin': True})
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def project_edit(request, project_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to edit client projects.')
+        return redirect('dashboard')
+    project = get_object_or_404(Project.objects.prefetch_related('payments'), pk=project_id)
+    form = ProjectForm(request.POST or None, instance=project)
+    if request.method == 'POST' and form.is_valid():
+        paid = sum((payment.amount for payment in project.payments.all()), 0)
+        if form.cleaned_data['budget'] < paid:
+            form.add_error('budget', f'Project price cannot be less than the Rs. {paid} already received.')
+        else:
+            form.save()
+            messages.success(request, f'Client project {project.name} was updated.')
+            return redirect('project_detail', project_id=project.id)
+    return render(request, 'erp_app/project_form.html', {'form': form, 'project': project, 'is_edit': True})
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def project_detail(request, project_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to view client project financials.')
+        return redirect('dashboard')
+    project = get_object_or_404(Project.objects.prefetch_related('payments'), pk=project_id)
+    if request.method == 'POST':
+        form = ProjectPaymentForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                project = get_object_or_404(Project.objects.select_for_update(), pk=project_id)
+                paid = project.amount_paid()
+                remaining = max(project.budget - paid, 0)
+                if form.cleaned_data['amount'] > remaining:
+                    form.add_error('amount', f'Payment cannot exceed the remaining balance of Rs. {remaining}.')
+                else:
+                    payment = form.save(commit=False)
+                    payment.project = project
+                    payment.recorded_by = request.user
+                    payment.save()
+                    messages.success(request, f'Payment of Rs. {payment.amount} recorded for {project.name}.')
+                    return redirect('project_detail', project_id=project.id)
+    else:
+        form = ProjectPaymentForm()
+    project.paid_total = sum((payment.amount for payment in project.payments.all()), 0)
+    project.remaining_total = max(project.budget - project.paid_total, 0)
+    return render(request, 'erp_app/project_detail.html', {'project': project, 'form': form, 'is_admin': True})
+
+
+@login_required
+@require_POST
+def project_delete(request, project_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to delete client projects.')
+        return redirect('dashboard')
+    project = get_object_or_404(Project, pk=project_id)
+    name = project.name
+    project.delete()
+    messages.success(request, f'Client project {name} and its payment history were deleted.')
+    return redirect('projects')
 
 @login_required
 def attendance(request):

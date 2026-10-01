@@ -57,6 +57,10 @@
                 <a href="{% url 'my_courses' %}" {% if request.resolver_match.url_name == 'my_courses' %}class="active"{% endif %}><i class="ph ph-book"></i> My Courses</a>
                 {% endif %}
                 <p class="nav-label">Management</p>
+                {% if is_normal_staff or is_super_admin %}
+                <a href="{% url 'students' %}" {% if request.resolver_match.url_name == 'students' or request.resolver_match.url_name == 'student_add' or request.resolver_match.url_name == 'student_detail' or request.resolver_match.url_name == 'student_edit' %}class="active"{% endif %}><i class="ph ph-student"></i> Students</a>
+                <a href="{% url 'projects' %}" {% if request.resolver_match.url_name == 'projects' or request.resolver_match.url_name == 'project_detail' or request.resolver_match.url_name == 'project_edit' %}class="active"{% endif %}><i class="ph ph-kanban"></i> Client Projects</a>
+                {% endif %}
                 {% if is_normal_staff or is_super_admin or is_teaching_staff %}
                 <a href="{% url 'id_generation' %}" {% if request.resolver_match.url_name == 'id_generation' %}class="active"{% endif %}><i class="ph ph-identification-card"></i> ID Cards</a>
                 {% endif %}

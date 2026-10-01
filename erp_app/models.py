@@ -354,6 +354,27 @@ class Project(models.Model):
     def __str__(self):
         return self.name
 
+    def amount_paid(self):
+        return self.payments.aggregate(total=models.Sum('amount'))['total'] or 0
+
+    def amount_remaining(self):
+        return max(self.budget - self.amount_paid(), 0)
+
+
+class ProjectPayment(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='payments')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_date = models.DateTimeField(auto_now_add=True)
+    reference = models.CharField(max_length=100, blank=True)
+    remarks = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-payment_date']
+
+    def __str__(self):
+        return f'{self.amount} paid for {self.project.name}'
+
 
 class Attendance(models.Model):
     ATTENDANCE_CHOICES = [
