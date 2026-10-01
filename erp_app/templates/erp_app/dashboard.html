@@ -50,7 +50,7 @@
         </table>
     </div>
 
-    <div class="data-card side">
+    {% if can_view_projects %}<div class="data-card side">
         <h3>Client Solutions</h3>
         {% for project in projects %}
         <div class="project-item">
@@ -64,6 +64,6 @@
             <i class="ph ph-shield-check"></i>
             <p>Secure access status active</p>
         </div>
-    </div>
+    </div>{% endif %}
 </div>
 {% endblock %}

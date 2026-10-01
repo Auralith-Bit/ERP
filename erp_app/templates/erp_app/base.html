@@ -33,7 +33,7 @@
                 {% if is_teaching_staff or is_super_admin or is_intern or is_student %}
                 <a href="{% url 'mentors' %}" {% if request.resolver_match.url_name == 'mentors' %}class="active"{% endif %}><i class="ph ph-chalkboard-teacher"></i> Mentors</a>
                 {% endif %}
-                {% if is_any_staff or is_intern %}
+                {% if is_any_staff %}
                 <div class="dropdown">
                     <button class="dropdown-btn">
                         <span><i class="ph ph-users"></i> Employee</span>
@@ -61,13 +61,13 @@
                 <a href="{% url 'students' %}" {% if request.resolver_match.url_name == 'students' or request.resolver_match.url_name == 'student_add' or request.resolver_match.url_name == 'student_detail' or request.resolver_match.url_name == 'student_edit' %}class="active"{% endif %}><i class="ph ph-student"></i> Students</a>
                 <a href="{% url 'projects' %}" {% if request.resolver_match.url_name == 'projects' or request.resolver_match.url_name == 'project_detail' or request.resolver_match.url_name == 'project_edit' %}class="active"{% endif %}><i class="ph ph-kanban"></i> Client Projects</a>
                 {% endif %}
-                {% if is_normal_staff or is_super_admin or is_teaching_staff %}
+                {% if is_normal_staff or is_super_admin %}
                 <a href="{% url 'id_generation' %}" {% if request.resolver_match.url_name == 'id_generation' %}class="active"{% endif %}><i class="ph ph-identification-card"></i> ID Cards</a>
                 {% endif %}
                 {% if is_any_staff or is_student or is_intern %}
                 <a href="{% url 'certificates' %}" {% if request.resolver_match.url_name == 'certificates' or request.resolver_match.url_name == 'issue_certificate' or request.resolver_match.url_name == 'preview_certificate' %}class="active"{% endif %}><i class="ph ph-certificate"></i> Certificates</a>
                 {% endif %}
-                {% if is_normal_staff or is_super_admin or is_teaching_staff %}
+                {% if is_normal_staff or is_super_admin %}
                 <a href="{% url 'budget_fees' %}" {% if request.resolver_match.url_name == 'budget_fees' %}class="active"{% endif %}><i class="ph ph-money"></i> Budget & Fees</a>
                 {% endif %}
                 {% if is_teaching_staff or is_super_admin %}
@@ -112,7 +112,7 @@
                     </div>
                     <div class="avatar">{{ user_initials }}</div>
                     <span>{{ request.user.get_full_name|default:request.user.username }}</span>
-                    <a href="{% url 'logout' %}" class="logout-link" title="Logout"><i class="ph ph-sign-out"></i></a>
+                    <form method="post" action="{% url 'logout' %}" style="display:inline;">{% csrf_token %}<button type="submit" class="logout-link" title="Logout" aria-label="Logout" style="background:none;border:0;cursor:pointer;"><i class="ph ph-sign-out"></i></button></form>
                 </div>
             </header>
             <div class="content">

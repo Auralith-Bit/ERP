@@ -21,6 +21,11 @@ services:
         condition: service_healthy
     environment:
       DEBUG: 'False'
+      # Direct LAN access uses HTTP. Set these to True behind a TLS proxy.
+      SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-False}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-False}
+      CSRF_COOKIE_SECURE: ${CSRF_COOKIE_SECURE:-False}
+      SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-0}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/erp

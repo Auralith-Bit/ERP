@@ -1,6 +1,7 @@
 import json
 import io
 import logging
+import mimetypes
 import random
 import string
 import qrcode
@@ -8,7 +9,7 @@ from functools import wraps
 from pathlib import Path
 from base64 import b64encode
 from datetime import datetime, date as EnglishDate
-from .nepali_utils import today_bs
+from .nepali_utils import today_bs, validate_bs_date
 from PIL import Image
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -17,14 +18,20 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User, Group
+from django.contrib.auth.password_validation import validate_password
 from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.apps import apps
 from django.urls import reverse, NoReverseMatch
-from django.http import JsonResponse, HttpResponse, FileResponse
+from django.http import JsonResponse, HttpResponse, FileResponse, Http404
 from django.template.loader import render_to_string
+from django.core.files.storage import default_storage
+from django.core import signing
 from django.views.decorators.http import require_http_methods, require_POST
 from django.core.mail import send_mail
 from django.core.files.base import ContentFile
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.html import strip_tags
 from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate, CourseEnrollment, Payment, PasswordResetCode, Attendance
 from .models import ProjectPayment, Bill
@@ -52,11 +59,14 @@ def login_view(request):
         if user is not None:
             login(request, user)
             next_url = request.GET.get('next', request.POST.get('next', 'dashboard'))
+            if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+                next_url = 'dashboard'
             return redirect(next_url)
         messages.error(request, 'Invalid username or password.')
     return render(request, 'erp_app/login.html')
 
 
+@require_POST
 def logout_view(request):
     logout(request)
     return redirect('login')
@@ -82,24 +92,36 @@ def register_view(request):
             errors.append('Username is required.')
         elif username[0].isdigit():
             errors.append('Username must not start with a number.')
-        elif User.objects.filter(username=username).exists():
+        elif User.objects.filter(username__iexact=username).exists():
             errors.append('Username already exists. Please choose another.')
         if not email:
             errors.append('Email is required.')
+        else:
+            try:
+                validate_email(email)
+            except ValidationError:
+                errors.append('Enter a valid email address.')
+            if User.objects.filter(email__iexact=email).exists() or Student.objects.filter(email__iexact=email).exists():
+                errors.append('Email address is already in use.')
         if not password:
             errors.append('Password is required.')
-        elif len(password) < 8:
-            errors.append('Password must be at least 8 characters.')
+        else:
+            try:
+                validate_password(password, User(username=username, email=email))
+            except ValidationError as error:
+                errors.extend(error.messages)
         if password != password2:
             errors.append('Passwords do not match.')
         if not errors:
-            user = User.objects.create_user(username=username, password=password, email=email)
-            student = Student.objects.create(user=user, name=username, email=email)
             try:
-                student_group = Group.objects.get(name='student')
-                user.groups.add(student_group)
-            except Group.DoesNotExist:
-                pass
+                with transaction.atomic():
+                    user = User.objects.create_user(username=username, password=password, email=email)
+                    student = Student.objects.create(user=user, name=username, email=email)
+                    student_group = Group.objects.get(name='student')
+                    user.groups.add(student_group)
+            except (IntegrityError, Group.DoesNotExist):
+                messages.error(request, 'The account could not be created because its username or email is already in use. Please try another.')
+                return render(request, 'erp_app/register.html', {'form_data': form_data})
             messages.success(request, 'Account created successfully. Please sign in.')
             return redirect('login')
         for error in errors:
@@ -179,6 +201,7 @@ def staff_account_delete(request, user_id):
 
 
 @login_required
+@require_POST
 def promote_to_intern(request, student_id):
     if not has_role(request.user, SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF):
         messages.error(request, 'You do not have permission to promote users.')
@@ -195,8 +218,12 @@ def password_reset(request):
         return redirect('dashboard')
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
-        if not User.objects.filter(email=email).exists():
+        matching_users = User.objects.filter(email__iexact=email)
+        if not matching_users.exists():
             messages.error(request, 'No account found with this email address.')
+            return render(request, 'erp_app/password_reset.html')
+        if matching_users.count() > 1:
+            messages.error(request, 'This email is linked to multiple accounts. Contact an administrator to resolve it before resetting the password.')
             return render(request, 'erp_app/password_reset.html')
         code = ''.join(random.choices(string.digits, k=6))
         PasswordResetCode.objects.create(email=email, code=code)
@@ -254,7 +281,16 @@ def password_reset_confirm(request):
         if password != password2:
             messages.error(request, 'Passwords do not match.')
             return render(request, 'erp_app/password_reset_confirm.html')
-        user = User.objects.get(email=email)
+        user = User.objects.filter(email__iexact=email).first()
+        if not user:
+            messages.error(request, 'Account could not be found. Please request a new reset code.')
+            return redirect('password_reset')
+        try:
+            validate_password(password, user)
+        except ValidationError as error:
+            for message in error.messages:
+                messages.error(request, message)
+            return render(request, 'erp_app/password_reset_confirm.html')
         user.set_password(password)
         user.save()
         reset_code.is_used = True
@@ -275,7 +311,8 @@ def dashboard(request):
         'live_classes': Course.objects.filter(status='live').count(),
         'expert_mentors': Mentor.objects.count(),
         'courses': Course.objects.select_related('mentor').all()[:5],
-        'projects': Project.objects.all()[:5],
+        'projects': Project.objects.all()[:5] if _can_manage_company_records(request.user) else Project.objects.none(),
+        'can_view_projects': _can_manage_company_records(request.user),
         'is_admin': has_role(request.user, SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF),
     }
     return render(request, 'erp_app/dashboard.html', context)
@@ -584,6 +621,9 @@ class _MentorRow:
 
 @login_required
 def employees(request):
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF):
+        messages.error(request, 'You do not have permission to view employee records.')
+        return redirect('dashboard')
     employee_type = request.GET.get('type', '')
     emp_list = list(Employee.objects.select_related('department').all())
     mentor_rows = [_MentorRow(m) for m in Mentor.objects.annotate(course_count=Count('course')).all()]
@@ -606,6 +646,9 @@ def employees(request):
 
 @login_required
 def departments(request):
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF):
+        messages.error(request, 'You do not have permission to view department records.')
+        return redirect('dashboard')
     dept_list = Department.objects.prefetch_related('employee_set').annotate(employee_count=Count('employee')).all()
     context = {
         'departments': dept_list,
@@ -615,16 +658,17 @@ def departments(request):
 
 @login_required
 def integration(request):
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF):
+        return redirect('dashboard')
     context = {}
     return render(request, 'erp_app/integration.html', context)
 
 @login_required
 def id_generation(request):
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF):
+        messages.error(request, 'You do not have permission to view ID cards.')
+        return redirect('dashboard')
     if request.method == 'POST':
-        if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF):
-            messages.error(request, 'Only admin can upload ID cards.')
-            return redirect('id_generation')
-        
         card_type = request.POST.get('card_type')
         if request.POST.get('action') == 'generate':
             try:
@@ -698,6 +742,35 @@ def id_generation(request):
         'is_admin': has_role(request.user, SUPER_ADMIN, NORMAL_STAFF),
     }
     return render(request, 'erp_app/id_generation.html', context)
+
+
+@login_required
+def protected_media(request, file_path):
+    """Serve only media records the signed-in user is allowed to see."""
+    card = IDCard.objects.filter(file=file_path).select_related('student', 'employee').first()
+    certificate = Certificate.objects.filter(file=file_path).select_related('student').first()
+    course = Course.objects.filter(syllabus=file_path).first()
+    is_staff = has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF)
+    student_profile = getattr(request.user, 'student_profile', None)
+
+    allowed = False
+    if card:
+        allowed = is_staff or bool(card.student_id and student_profile and student_profile.pk == card.student_id)
+    elif certificate:
+        allowed = is_staff or bool(student_profile and student_profile.pk == certificate.student_id)
+    elif course:
+        allowed = request.user.is_authenticated
+
+    if not allowed or not default_storage.exists(file_path):
+        raise Http404
+    try:
+        file_handle = default_storage.open(file_path, 'rb')
+    except (FileNotFoundError, OSError):
+        raise Http404
+    response = FileResponse(file_handle, content_type=mimetypes.guess_type(file_path)[0] or 'application/octet-stream')
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['Cache-Control'] = 'private, no-store'
+    return response
 
 
 def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=None):
@@ -782,7 +855,7 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
             y += 43
         y += 7
     qr = qrcode.QRCode(box_size=7, border=2)
-    qr.add_data(json.dumps(qr_data, ensure_ascii=False))
+    qr.add_data(signing.dumps(qr_data, salt='auralith-erp.id-card', compress=True))
     qr.make(fit=True)
     image.paste(qr.make_image(fill_color='#153D68', back_color='white').convert('RGB').resize((240, 240)), (720, 200))
     draw_label((762, 455), code, '#1A4B8D', choose_font(regular_fonts, 19))
@@ -826,6 +899,9 @@ def delete_id_card(request, card_id):
 
 @login_required
 def budget_fees(request):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to view company financial summaries.')
+        return redirect('dashboard')
     enrollments = CourseEnrollment.objects.prefetch_related('payments')
     course_fees = sum((enrollment.total_fee for enrollment in enrollments), 0)
     student_payments = sum((payment.amount for enrollment in enrollments for payment in enrollment.payments.all()), 0)
@@ -974,7 +1050,7 @@ def generate_project_bill(request, project_id):
 @login_required
 def bill_detail(request, bill_id):
     bill = get_object_or_404(Bill.objects.select_related('enrollment__student', 'enrollment__course', 'project', 'issued_by'), pk=bill_id)
-    is_staff = has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF)
+    is_staff = has_role(request.user, SUPER_ADMIN, NORMAL_STAFF)
     is_owner = bool(bill.enrollment_id and hasattr(request.user, 'student_profile') and request.user.student_profile_id == bill.enrollment.student_id)
     if not (is_staff or is_owner):
         messages.error(request, 'You do not have access to this bill.')
@@ -987,8 +1063,19 @@ def attendance(request):
         return redirect('dashboard')
 
     courses = Course.objects.all()
-    selected_course_id = request.GET.get('course_id') or request.POST.get('course_id')
+    raw_course_id = request.GET.get('course_id') or request.POST.get('course_id')
+    try:
+        selected_course_id = int(raw_course_id) if raw_course_id else None
+    except (TypeError, ValueError):
+        selected_course_id = None
+        messages.error(request, 'Choose a valid course.')
+    if selected_course_id and not courses.filter(pk=selected_course_id).exists():
+        selected_course_id = None
+        messages.error(request, 'The selected course was not found.')
     selected_date = request.GET.get('date') or request.POST.get('date') or today_bs()
+    if not validate_bs_date(selected_date):
+        selected_date = today_bs()
+        messages.error(request, 'Choose a valid Nepali calendar date.')
 
     enrollments = []
     existing_records = {}
@@ -1009,7 +1096,13 @@ def attendance(request):
     if request.method == 'POST':
         course_id = request.POST.get('course_id')
         att_date = request.POST.get('date')
-
+        try:
+            course_id = int(course_id)
+        except (TypeError, ValueError):
+            course_id = None
+        if not course_id or not courses.filter(pk=course_id).exists() or not validate_bs_date(att_date):
+            messages.error(request, 'Choose a valid course and Nepali calendar date before saving attendance.')
+            return redirect('attendance')
         if course_id and att_date:
             active_enrollments = CourseEnrollment.objects.filter(
                 course_id=course_id,
@@ -1037,7 +1130,7 @@ def attendance(request):
 
     context = {
         'courses': courses,
-        'selected_course_id': int(selected_course_id) if selected_course_id else None,
+        'selected_course_id': selected_course_id,
         'selected_date': selected_date,
         'enrollments': enrollments,
         'existing_records': existing_records,
@@ -1067,26 +1160,31 @@ def search(request):
             Q(bio__icontains=query)
         )[:20]
 
-        student_matches = Student.objects.filter(
-            Q(name__icontains=query) |
-            Q(email__icontains=query) |
-            Q(phone__icontains=query)
-        )[:20]
-
-        project_matches = Project.objects.filter(
-            Q(name__icontains=query) |
-            Q(description__icontains=query) |
-            Q(client__icontains=query) |
-            Q(status__icontains=query)
-        )[:20]
-
-        employee_matches = Employee.objects.filter(
-            Q(name__icontains=query) |
-            Q(email__icontains=query) |
-            Q(role__icontains=query) |
-            Q(employee_type__icontains=query) |
-            Q(department__name__icontains=query)
-        ).select_related('department')[:20]
+        staff_user = has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF)
+        company_manager = _can_manage_company_records(request.user)
+        student_matches = Student.objects.none()
+        employee_matches = Employee.objects.none()
+        project_matches = Project.objects.none()
+        if staff_user:
+            student_matches = Student.objects.filter(
+                Q(name__icontains=query) |
+                Q(email__icontains=query) |
+                Q(phone__icontains=query)
+            )[:20]
+            employee_matches = Employee.objects.filter(
+                Q(name__icontains=query) |
+                Q(email__icontains=query) |
+                Q(role__icontains=query) |
+                Q(employee_type__icontains=query) |
+                Q(department__name__icontains=query)
+            ).select_related('department')[:20]
+        if company_manager:
+            project_matches = Project.objects.filter(
+                Q(name__icontains=query) |
+                Q(description__icontains=query) |
+                Q(client__icontains=query) |
+                Q(status__icontains=query)
+            )[:20]
 
         department_matches = Department.objects.filter(
             Q(name__icontains=query) |
@@ -1096,9 +1194,9 @@ def search(request):
         results = [
             {'title': 'Courses', 'items': course_matches},
             {'title': 'Mentors', 'items': mentor_matches},
-            {'title': 'Students', 'items': student_matches},
-            {'title': 'Projects', 'items': project_matches},
-            {'title': 'Employees', 'items': employee_matches},
+            *([{'title': 'Students', 'items': student_matches}] if staff_user else []),
+            *([{'title': 'Projects', 'items': project_matches}] if company_manager else []),
+            *([{'title': 'Employees', 'items': employee_matches}] if staff_user else []),
             {'title': 'Departments', 'items': department_matches},
         ]
         total_matches = sum(item['items'].count() for item in results)
@@ -1112,6 +1210,9 @@ def search(request):
 
 @login_required
 def workbench(request):
+    if not has_role(request.user, SUPER_ADMIN):
+        messages.error(request, 'Only a system administrator can browse database records.')
+        return redirect('dashboard')
     all_models = apps.get_models()
     model_data = []
     for model in all_models:
@@ -1138,6 +1239,9 @@ def workbench(request):
 
 @login_required
 def workbench_table(request, app_label, model_name):
+    if not has_role(request.user, SUPER_ADMIN):
+        messages.error(request, 'Only a system administrator can browse database records.')
+        return redirect('dashboard')
     model = None
     for m in apps.get_models():
         if m.__name__ == model_name and m._meta.app_label == app_label:
@@ -1168,6 +1272,8 @@ def workbench_table(request, app_label, model_name):
 @require_http_methods(["GET"])
 def get_students(request):
     """API endpoint to get all students as JSON"""
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF):
+        return JsonResponse({'error': 'Permission denied.'}, status=403)
     students = Student.objects.all().values('id', 'name', 'email')
     return JsonResponse(list(students), safe=False)
 
@@ -1176,6 +1282,8 @@ def get_students(request):
 @require_http_methods(["GET"])
 def get_employees(request):
     """API endpoint to get all employees as JSON"""
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF):
+        return JsonResponse({'error': 'Permission denied.'}, status=403)
     employees = Employee.objects.select_related('department').all().values('id', 'name', 'email', 'department__name', 'employee_type')
     return JsonResponse(list(employees), safe=False)
 
@@ -1192,7 +1300,9 @@ def get_courses(request):
 @require_http_methods(["GET"])
 def get_departments(request):
     """API endpoint to get all departments as JSON"""
-    departments = Department.objects.all().values('id', 'name', 'head')
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF):
+        return JsonResponse({'error': 'Permission denied.'}, status=403)
+    departments = Department.objects.all().values('id', 'name', 'description')
     return JsonResponse(list(departments), safe=False)
 
 
@@ -1200,6 +1310,8 @@ def get_departments(request):
 @require_http_methods(["POST"])
 def generate_student_id(request):
     """Generate student ID card with QR code containing all details"""
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF):
+        return JsonResponse({'error': 'Permission denied.'}, status=403)
     try:
         data = json.loads(request.body)
         student_id = data.get('student_id')
@@ -1230,7 +1342,7 @@ def generate_student_id(request):
         
         # Generate QR code with all details
         qr = qrcode.QRCode(version=None, box_size=10, border=5)
-        qr.add_data(qr_data)
+        qr.add_data(signing.dumps(json.loads(qr_data), salt='auralith-erp.id-card', compress=True))
         qr.make(fit=True)
         
         img = qr.make_image(fill_color="black", back_color="white")
@@ -1263,6 +1375,8 @@ def generate_student_id(request):
 @require_http_methods(["POST"])
 def generate_employee_id(request):
     """Generate employee ID card with QR code containing all details"""
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF):
+        return JsonResponse({'error': 'Permission denied.'}, status=403)
     try:
         data = json.loads(request.body)
         employee_id = data.get('employee_id')
@@ -1293,7 +1407,7 @@ def generate_employee_id(request):
         
         # Generate QR code with all details
         qr = qrcode.QRCode(version=None, box_size=10, border=5)
-        qr.add_data(qr_data)
+        qr.add_data(signing.dumps(json.loads(qr_data), salt='auralith-erp.id-card', compress=True))
         qr.make(fit=True)
         
         img = qr.make_image(fill_color="black", back_color="white")
@@ -1324,47 +1438,82 @@ def generate_employee_id(request):
 @require_http_methods(["POST"])
 def verify_id_card(request):
     """Verify and display ID card details from scanned QR code data"""
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF):
+        return JsonResponse({'error': 'Permission denied.'}, status=403)
     try:
         data = json.loads(request.body)
+        if not isinstance(data, dict):
+            return JsonResponse({'error': 'Invalid verification request'}, status=400)
         qr_data_str = data.get('qr_data')
         
         if not qr_data_str:
             return JsonResponse({'error': 'No QR data provided'}, status=400)
         
-        # Parse QR code data
-        qr_data = json.loads(qr_data_str)
+        try:
+            qr_data = signing.loads(qr_data_str, salt='auralith-erp.id-card')
+        except signing.BadSignature:
+            # Accept older cards only after their ID and holder data match the database.
+            qr_data = json.loads(qr_data_str)
+        if not isinstance(qr_data, dict):
+            return JsonResponse({'error': 'Invalid QR code data format'}, status=400)
         card_type = qr_data.get('type')
-        
+
         if card_type in ('STUDENT_ID', 'INTERN_ID'):
+            code_parts = str(qr_data.get('id', '')).split('-')
+            if card_type == 'INTERN_ID' and len(code_parts) == 2 and code_parts[0] == 'INT':
+                student_id = int(code_parts[1])
+                student = Student.objects.get(pk=student_id, is_intern=True)
+                course = None
+            elif card_type == 'STUDENT_ID' and len(code_parts) == 3 and code_parts[0] == 'STU':
+                student_id, course_id = int(code_parts[1]), int(code_parts[2])
+                student = Student.objects.get(pk=student_id)
+                course = Course.objects.get(pk=course_id)
+            else:
+                return JsonResponse({'error': 'Invalid student ID card number'}, status=400)
+            if not IDCard.objects.filter(card_type='student', student=student).exists():
+                return JsonResponse({'error': 'No issued student ID card exists for this student'}, status=404)
+            if qr_data.get('name') != student.name or qr_data.get('email') != student.email or qr_data.get('phone') != (student.phone or 'N/A'):
+                return JsonResponse({'error': 'ID card data does not match the student record'}, status=400)
             return JsonResponse({
                 'success': True,
                 'type': 'intern' if card_type == 'INTERN_ID' else 'student',
-                'id': qr_data.get('id'),
-                'name': qr_data.get('name'),
-                'email': qr_data.get('email'),
-                'phone': qr_data.get('phone'),
-                'course': qr_data.get('course'),
-                'category': qr_data.get('category'),
-                'enrolled_date': qr_data.get('enrolled_date'),
+                'id': f'INT-{student.pk:05d}' if card_type == 'INTERN_ID' else f'STU-{student.pk:05d}-{course.pk:05d}',
+                'name': student.name,
+                'email': student.email,
+                'phone': student.phone or 'N/A',
+                'course': course.name if course else '',
+                'category': course.get_category_display() if course else '',
+                'enrolled_date': student.enrolled_date.isoformat(),
                 'date_generated': qr_data.get('date_generated')
             })
         elif card_type == 'EMPLOYEE_ID':
+            code_parts = str(qr_data.get('id', '')).split('-')
+            if len(code_parts) != 2 or code_parts[0] != 'EMP':
+                return JsonResponse({'error': 'Invalid employee ID card number'}, status=400)
+            employee = Employee.objects.select_related('department').get(pk=int(code_parts[1]))
+            if not IDCard.objects.filter(card_type='employee', employee=employee).exists():
+                return JsonResponse({'error': 'No issued employee ID card exists for this employee'}, status=404)
+            department = employee.department.name if employee.department else 'N/A'
+            if qr_data.get('name') != employee.name or qr_data.get('email') != employee.email:
+                return JsonResponse({'error': 'ID card data does not match the employee record'}, status=400)
             return JsonResponse({
                 'success': True,
                 'type': 'employee',
-                'id': qr_data.get('id'),
-                'name': qr_data.get('name'),
-                'email': qr_data.get('email'),
-                'role': qr_data.get('role'),
-                'department': qr_data.get('department'),
-                'employee_type': qr_data.get('employee_type'),
-                'joined_date': qr_data.get('joined_date'),
+                'id': f'EMP-{employee.pk:05d}',
+                'name': employee.name,
+                'email': employee.email,
+                'role': employee.role or 'N/A',
+                'department': department,
+                'employee_type': employee.get_employee_type_display(),
+                'joined_date': employee.joined_date.isoformat(),
                 'date_generated': qr_data.get('date_generated')
             })
         else:
             return JsonResponse({'error': 'Invalid ID card type'}, status=400)
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid QR code data format'}, status=400)
+    except (Student.DoesNotExist, Employee.DoesNotExist, Course.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({'error': 'ID card holder or course was not found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -1684,9 +1833,9 @@ def my_courses(request):
     return render(request, 'erp_app/my_courses.html', context)
 
 
+@login_required
+@require_POST
 def send_payment_receipt(request, enrollment_id):
-    if not request.user.is_authenticated:
-        return redirect('login')
     if not has_role(request.user, SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF):
         messages.error(request, 'You do not have permission to send receipts.')
         return redirect('dashboard')

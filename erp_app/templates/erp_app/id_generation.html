@@ -110,15 +110,16 @@
         {% if student_cards %}
         <div style="display:grid;gap:14px;">
             {% for card in student_cards %}
-            <div class="id-card-item" onclick="openImageModal('{{ card.file.url }}', '{{ card.owner_name }}')">
-                <img src="{{ card.file.url }}" alt="{{ card.owner_name }}" class="id-card-thumbnail" />
+            {% url 'protected_media' card.file.name as card_url %}
+            <div class="id-card-item">
+                <img src="{{ card_url }}" data-image-url="{{ card_url }}" data-image-name="{{ card.owner_name }}" alt="{{ card.owner_name }}" class="id-card-thumbnail" />
                 <div class="id-card-content">
                     <div style="font-weight:700;color:var(--text-dark);">{{ card.owner_name }}</div>
                     <small style="color:var(--text-muted);">Uploaded {{ card.uploaded_at|date:'M d, Y H:i' }}</small>
                 </div>
                 {% if is_admin %}
                 <div class="id-card-actions">
-                    <a class="btn-outline" href="{{ card.file.url }}" download onclick="event.stopPropagation();">Download</a>
+                    <a class="btn-outline" href="{{ card_url }}" download>Download</a>
                     <button type="button" class="btn-delete" onclick="deleteIDCard(event, {{ card.id }})">
                         <i class="ph ph-trash"></i> Delete
                     </button>
@@ -137,15 +138,16 @@
         {% if employee_cards %}
         <div style="display:grid;gap:14px;">
             {% for card in employee_cards %}
-            <div class="id-card-item" onclick="openImageModal('{{ card.file.url }}', '{{ card.owner_name }}')">
-                <img src="{{ card.file.url }}" alt="{{ card.owner_name }}" class="id-card-thumbnail" />
+            {% url 'protected_media' card.file.name as card_url %}
+            <div class="id-card-item">
+                <img src="{{ card_url }}" data-image-url="{{ card_url }}" data-image-name="{{ card.owner_name }}" alt="{{ card.owner_name }}" class="id-card-thumbnail" />
                 <div class="id-card-content">
                     <div style="font-weight:700;color:var(--text-dark);">{{ card.owner_name }}</div>
                     <small style="color:var(--text-muted);">Uploaded {{ card.uploaded_at|date:'M d, Y H:i' }}</small>
                 </div>
                 {% if is_admin %}
                 <div class="id-card-actions">
-                    <a class="btn-outline" href="{{ card.file.url }}" download onclick="event.stopPropagation();">Download</a>
+                    <a class="btn-outline" href="{{ card_url }}" download>Download</a>
                     <button type="button" class="btn-delete" onclick="deleteIDCard(event, {{ card.id }})">
                         <i class="ph ph-trash"></i> Delete
                     </button>
@@ -182,6 +184,9 @@
     }
     function closeImageModal() { document.getElementById('imageModal').classList.remove('show'); }
     document.getElementById('imageModal').addEventListener('click', function(e){ if (e.target === this) closeImageModal(); });
+    document.querySelectorAll('.id-card-thumbnail').forEach(function(image) {
+        image.addEventListener('click', function() { openImageModal(this.dataset.imageUrl, this.dataset.imageName); });
+    });
 
     function deleteIDCard(event, cardId) {
         event.stopPropagation();

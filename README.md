@@ -49,6 +49,9 @@ Set the following environment variables in production or local dev. Production m
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `ALLOWED_HOSTS` | Yes | Comma-separated (e.g. `myapp.onrender.com,localhost`) |
 | `DEBUG` | No | Set to `True` for local dev only |
+| `SECURE_SSL_REDIRECT` | No | Enable with `SESSION_COOKIE_SECURE` and `CSRF_COOKIE_SECURE` when serving the app over HTTPS |
+| `SESSION_COOKIE_SECURE` / `CSRF_COOKIE_SECURE` | No | Set `True` for HTTPS deployments; keep `False` only for direct HTTP on a trusted LAN |
+| `SECURE_HSTS_SECONDS` | No | Enable HSTS only after HTTPS is confirmed for the whole hostname |
 | `EMAIL_HOST_USER` | No | Gmail address for payment receipts |
 | `EMAIL_HOST_PASSWORD` | No | Gmail app password |
 | `BOOTSTRAP_ADMIN_USERNAME` | No | Optional first-start administrator setup; set all three bootstrap values together |

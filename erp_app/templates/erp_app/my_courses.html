@@ -41,7 +41,7 @@
                 </td>
                 {% if is_any_staff %}
                 <td>
-                    <a href="{% url 'send_receipt' enrollment.id %}" class="btn-sm" onclick="return confirm('Send payment receipt to {{ enrollment.student.email }}?')">Send Receipt</a>
+                    <form method="post" action="{% url 'send_receipt' enrollment.id %}" style="display:inline;" onsubmit="return confirm('Send payment receipt to {{ enrollment.student.email|escapejs }}?');">{% csrf_token %}<button type="submit" class="btn-sm">Send Receipt</button></form>
                 </td>
                 {% endif %}
             </tr>

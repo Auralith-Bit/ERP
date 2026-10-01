@@ -20,8 +20,8 @@ def get_bool(value, default=False):
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-local-development-only')
 
 DEBUG = get_bool(os.environ.get('DEBUG'), False)
-if not DEBUG and SECRET_KEY == 'django-insecure-local-development-only':
-    raise RuntimeError('Set SECRET_KEY to a strong, private value in production.')
+if not DEBUG and (SECRET_KEY.startswith('django-insecure-') or SECRET_KEY.startswith('replace-with-')):
+    raise RuntimeError('Replace the development/example SECRET_KEY before deploying.')
 
 allowed_hosts = os.environ.get(
     'ALLOWED_HOSTS',
@@ -49,6 +49,10 @@ if not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['erp.auralithbit.com.np', 'localhost', '127.0.0.1']
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = get_bool(os.environ.get('SECURE_SSL_REDIRECT'), not DEBUG)
+SESSION_COOKIE_SECURE = get_bool(os.environ.get('SESSION_COOKIE_SECURE'), SECURE_SSL_REDIRECT)
+CSRF_COOKIE_SECURE = get_bool(os.environ.get('CSRF_COOKIE_SECURE'), SECURE_SSL_REDIRECT)
+SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '0'))
 
 # ---------------------------------------------------------------------------
 # Application definition
@@ -104,6 +108,8 @@ if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.parse(DATABASE_URL, conn_max_age=60)
     }
+    if not DEBUG and DATABASES['default']['ENGINE'] != 'django.db.backends.postgresql':
+        raise RuntimeError('Production DATABASE_URL must point to PostgreSQL for shared persistent storage.')
 elif DEBUG:
     DATABASES = {
         'default': {

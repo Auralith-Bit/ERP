@@ -12,7 +12,7 @@
     {% if course.syllabus %}
         <div style="display:flex;flex-direction:column;align-items:flex-start;gap:12px;">
             <p style="margin:0;">Download or preview the syllabus below:</p>
-            <a href="{{ course.syllabus.url }}" target="_blank" class="btn-outline" style="display:inline-flex;width:auto;max-width:none;align-self:flex-start;">Open Syllabus</a>
+            <a href="{% url 'protected_media' course.syllabus.name %}" target="_blank" rel="noopener" class="btn-outline" style="display:inline-flex;width:auto;max-width:none;align-self:flex-start;">Open Syllabus</a>
         </div>
     {% else %}
         <p style="color:#64748B;">No syllabus file uploaded for this course.</p>

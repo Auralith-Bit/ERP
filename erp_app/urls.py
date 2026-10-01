@@ -11,6 +11,7 @@ urlpatterns = [
     path('staff-accounts/', views.staff_accounts, name='staff_accounts'),
     path('staff-accounts/<int:user_id>/edit/', views.staff_account_edit, name='staff_account_edit'),
     path('staff-accounts/<int:user_id>/delete/', views.staff_account_delete, name='staff_account_delete'),
+    path('media/<path:file_path>', views.protected_media, name='protected_media'),
     path('password-reset/', views.password_reset, name='password_reset'),
     path('password-reset/verify/', views.password_reset_verify, name='password_reset_verify'),
     path('password-reset/confirm/', views.password_reset_confirm, name='password_reset_confirm'),
