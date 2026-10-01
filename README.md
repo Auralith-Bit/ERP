@@ -64,11 +64,9 @@ To start with a clean hosted database, run `python manage.py flush --noinput` on
 
 ### Production Build (Render)
 
-A `build.sh` script is included for Render's build step:
+Use `./build.sh` as Render's build command and `sh entrypoint.sh` as its start command. The included `Procfile` supplies the start command when Render detects it and no dashboard start command overrides it. The build installs dependencies and collects static assets. At startup the entrypoint waits for PostgreSQL, applies migrations, collects static assets, optionally creates the one-time bootstrap admin, and starts Gunicorn. Set `DATABASE_URL` to the persistent PostgreSQL service URL, a private `SECRET_KEY`, `DEBUG=False`, and the public hostname in `ALLOWED_HOSTS` in Render's environment settings. Do not put credentials in `render.yaml` or commit them.
 
-```bash
-./build.sh   # pip install → collectstatic → migrate
-```
+For an existing Render service, check **Settings → Build & Deploy**: set the build command to `./build.sh` and the start command to `sh entrypoint.sh` (an existing dashboard command overrides the `Procfile`). Confirm the service is connected to the intended persistent PostgreSQL database before deploying. Render's local filesystem is ephemeral; configure persistent/object storage for uploaded syllabi, ID card images, and generated certificate files if those files must survive service replacement.
 
 ### Email Setup
 
