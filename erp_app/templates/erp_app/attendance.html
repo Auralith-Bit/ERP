@@ -1,14 +1,11 @@
 {% extends 'erp_app/base.html' %}
 {% load erp_extras %}
 {% block title %}Attendance Management{% endblock %}
-{% block extra_head %}
-<link href="https://nepalidatepicker.sajanmaharjan.com.np/v5/nepali.datepicker/css/nepali.datepicker.v5.0.6.min.css" rel="stylesheet" type="text/css"/>
-{% endblock %}
 {% block content %}
 <header class="top-nav" style="position:static;padding:0 0 20px 0;border-bottom:none;height:auto;background:transparent;">
     <div class="header-info">
         <h1>Attendance Management</h1>
-        <p>Mark student attendance for courses</p>
+        <p>Record student attendance by Nepali calendar month</p>
     </div>
 </header>
 
@@ -19,53 +16,51 @@
         <option value="{{ course.id }}" {% if selected_course_id == course.id %}selected{% endif %}>{{ course.name }}</option>
         {% endfor %}
     </select>
-    <div style="display:flex;gap:0;align-items:center;">
-        <input type="text" name="date" id="attendance-date" value="{{ selected_date }}" placeholder="YYYY-MM-DD (Nepali)" pattern="\d{4}-\d{2}-\d{2}" title="Enter Nepali date in YYYY-MM-DD format (e.g., 2082-11-25)" onchange="this.form.submit()" style="padding:8px 12px;border:1px solid var(--panel-border);border-right:none;border-radius:8px 0 0 8px;background:var(--surface);color:var(--text-dark);font-size:13px;">
-        <button type="button" id="calendar-btn" style="padding:8px 10px;border:1px solid var(--panel-border);border-radius:0 8px 8px 0;background:var(--surface);color:var(--text-muted);cursor:pointer;font-size:16px;display:flex;align-items:center;line-height:1;" title="Pick Nepali date">
-            <i class="ph ph-calendar"></i>
-        </button>
-    </div>
+    <label style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:13px;">BS Year
+        <input type="number" name="year" value="{{ selected_year }}" min="1975" max="2100" required onchange="this.form.submit()" style="width:105px;padding:8px 12px;border:1px solid var(--panel-border);border-radius:8px;background:var(--surface);color:var(--text-dark);font-size:13px;">
+    </label>
+    <select name="month" onchange="this.form.submit()" aria-label="Nepali month" style="padding:8px 12px;border:1px solid var(--panel-border);border-radius:8px;background:var(--surface);color:var(--text-dark);font-size:13px;">
+        {% for month_value, month_name in nepali_months %}
+        <option value="{{ month_value }}" {% if selected_month == month_value %}selected{% endif %}>{{ month_name }}</option>
+        {% endfor %}
+    </select>
 </form>
 
 {% if selected_course_id and enrollments %}
 <form method="post" id="attendanceForm">
     {% csrf_token %}
     <input type="hidden" name="course_id" value="{{ selected_course_id }}">
-    <input type="hidden" name="date" value="{{ selected_date }}">
+    <input type="hidden" name="year" value="{{ selected_year }}">
+    <input type="hidden" name="month" value="{{ selected_month }}">
 
-    <div class="data-card" style="padding:0;overflow:hidden;">
-        <table>
+    <p style="margin:0 0 12px;color:var(--text-muted);">{{ selected_year }} BS · {{ month_days|length }} days. Choose Present, Absent, or Late for each student and day. Unmarked cells are left unchanged.</p>
+    <div class="data-card" style="padding:0;overflow:auto;">
+        <table style="min-width:max-content;">
             <thead>
                 <tr>
-                    <th style="width:50px;">#</th>
-                    <th>Student Name</th>
-                    <th>Enrolled Course</th>
-                    <th style="width:220px;">Status</th>
+                    <th style="min-width:50px;position:sticky;left:0;background:var(--surface);z-index:2;">#</th>
+                    <th style="min-width:190px;position:sticky;left:50px;background:var(--surface);z-index:2;">Student Name</th>
+                    {% for day in month_days %}<th style="min-width:48px;text-align:center;">{{ day.day }}</th>{% endfor %}
                 </tr>
             </thead>
             <tbody>
-                {% for enrollment in enrollments %}
-                {% with sid=enrollment.student.id current_status=existing_records|get_item:enrollment.student.id %}
+                {% for row in attendance_rows %}
+                {% with enrollment=row.enrollment sid=row.enrollment.student.id %}
                 <tr>
-                    <td>{{ forloop.counter }}</td>
-                    <td><strong>{{ enrollment.student.name }}</strong></td>
-                    <td>{{ enrollment.course.name }}</td>
-                    <td>
-                        <div style="display:flex;gap:8px;">
-                            <label class="attn-label" data-student="{{ sid }}" data-value="P" style="display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;border:2px solid transparent;transition:0.2s;{% if current_status == 'P' %}background:#DCFCE7;color:#166534;border-color:#166534;{% else %}background:#F1F5F9;color:#64748B;{% endif %}">
-                                <input type="radio" name="status_{{ sid }}" value="P" {% if current_status == 'P' %}checked{% endif %} style="display:none;">
-                                P
-                            </label>
-                            <label class="attn-label" data-student="{{ sid }}" data-value="A" style="display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;border:2px solid transparent;transition:0.2s;{% if current_status == 'A' %}background:#FEE2E2;color:#991B1B;border-color:#991B1B;{% else %}background:#F1F5F9;color:#64748B;{% endif %}">
-                                <input type="radio" name="status_{{ sid }}" value="A" {% if current_status == 'A' %}checked{% endif %} style="display:none;">
-                                A
-                            </label>
-                            <label class="attn-label" data-student="{{ sid }}" data-value="L" style="display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;border:2px solid transparent;transition:0.2s;{% if current_status == 'L' %}background:#FEF3C7;color:#92400E;border-color:#92400E;{% else %}background:#F1F5F9;color:#64748B;{% endif %}">
-                                <input type="radio" name="status_{{ sid }}" value="L" {% if current_status == 'L' %}checked{% endif %} style="display:none;">
-                                L
-                            </label>
-                        </div>
+                    <td style="position:sticky;left:0;background:var(--surface);z-index:1;">{{ forloop.counter }}</td>
+                    <td style="position:sticky;left:50px;background:var(--surface);z-index:1;"><strong>{{ enrollment.student.name }}</strong></td>
+                    {% for day in month_days %}
+                    {% with existing_status=row.statuses|get_item:day.date %}
+                    <td style="padding:4px;text-align:center;">
+                        <select name="status_{{ sid }}_{{ day.key }}" aria-label="{{ enrollment.student.name }} attendance on {{ day.date }}" style="width:48px;padding:5px 2px;border:1px solid var(--panel-border);border-radius:6px;background:{% if existing_status == 'P' %}#DCFCE7{% elif existing_status == 'A' %}#FEE2E2{% elif existing_status == 'L' %}#FEF3C7{% else %}var(--surface){% endif %};color:var(--text-dark);">
+                            <option value="" {% if not existing_status %}selected{% endif %}>—</option>
+                            <option value="P" {% if existing_status == 'P' %}selected{% endif %}>P</option>
+                            <option value="A" {% if existing_status == 'A' %}selected{% endif %}>A</option>
+                            <option value="L" {% if existing_status == 'L' %}selected{% endif %}>L</option>
+                        </select>
                     </td>
+                    {% endwith %}
+                    {% endfor %}
                 </tr>
                 {% endwith %}
                 {% endfor %}
@@ -74,12 +69,7 @@
     </div>
 
     <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;align-items:center;">
-        <div style="display:flex;gap:8px;">
-            <button type="button" onclick="setAllStatus('P')" style="padding:8px 16px;font-size:13px;cursor:pointer;background:#DCFCE7;color:#166534;border:1px solid #166534;border-radius:8px;font-weight:600;">All Present</button>
-            <button type="button" onclick="setAllStatus('A')" style="padding:8px 16px;font-size:13px;cursor:pointer;background:#FEE2E2;color:#991B1B;border:1px solid #991B1B;border-radius:8px;font-weight:600;">All Absent</button>
-            <button type="button" onclick="setAllStatus('L')" style="padding:8px 16px;font-size:13px;cursor:pointer;background:#FEF3C7;color:#92400E;border:1px solid #92400E;border-radius:8px;font-weight:600;">All Late</button>
-        </div>
-        <button type="submit" style="padding:8px 24px;font-size:14px;cursor:pointer;background:var(--auralith-blue);color:white;border:none;border-radius:8px;font-weight:600;">Save Attendance</button>
+        <button type="submit" style="padding:8px 24px;font-size:14px;cursor:pointer;background:var(--auralith-blue);color:white;border:none;border-radius:8px;font-weight:600;">Save Monthly Attendance</button>
     </div>
 </form>
 {% elif selected_course_id and not enrollments %}
@@ -88,81 +78,4 @@
 </div>
 {% endif %}
 
-<script>
-function setAllStatus(value) {
-    var labels = document.querySelectorAll('.attn-label');
-    var colors = {
-        'P': { bg: '#DCFCE7', text: '#166534', border: '#166534' },
-        'A': { bg: '#FEE2E2', text: '#991B1B', border: '#991B1B' },
-        'L': { bg: '#FEF3C7', text: '#92400E', border: '#92400E' },
-    };
-    var c = colors[value];
-    labels.forEach(function(label) {
-        var radio = label.querySelector('input[type="radio"]');
-        if (radio && radio.value === value) {
-            radio.checked = true;
-            label.style.background = c.bg;
-            label.style.color = c.text;
-            label.style.borderColor = c.border;
-        } else if (radio) {
-            label.style.background = '#F1F5F9';
-            label.style.color = '#64748B';
-            label.style.borderColor = 'transparent';
-        }
-    });
-}
-
-document.addEventListener('click', function(e) {
-    var label = e.target.closest('.attn-label');
-    if (label) {
-        var radio = label.querySelector('input[type="radio"]');
-        if (radio) {
-            radio.checked = true;
-            var student = label.dataset.student;
-            var value = label.dataset.value;
-            var colors = {
-                'P': { bg: '#DCFCE7', text: '#166534', border: '#166534' },
-                'A': { bg: '#FEE2E2', text: '#991B1B', border: '#991B1B' },
-                'L': { bg: '#FEF3C7', text: '#92400E', border: '#92400E' },
-            };
-            var c = colors[value];
-            label.style.background = c.bg;
-            label.style.color = c.text;
-            label.style.borderColor = c.border;
-            document.querySelectorAll('.attn-label[data-student="' + student + '"]').forEach(function(l) {
-                if (l !== label) {
-                    l.style.background = '#F1F5F9';
-                    l.style.color = '#64748B';
-                    l.style.borderColor = 'transparent';
-                }
-            });
-        }
-    }
-});
-</script>
-{% endblock %}
-{% block extra_js %}
-<script src="https://nepalidatepicker.sajanmaharjan.com.np/v5/nepali.datepicker/js/nepali.datepicker.v5.0.6.min.js" type="text/javascript"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var input = document.getElementById('attendance-date');
-    var btn = document.getElementById('calendar-btn');
-    if (input) {
-        input.NepaliDatePicker({
-            dateFormat: 'YYYY-MM-DD',
-            language: 'english',
-            miniEnglishDates: true,
-            onSelect: function() {
-                input.form.submit();
-            }
-        });
-        if (btn) {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                input.focus();
-            });
-        }
-    }
-});
-</script>
 {% endblock %}

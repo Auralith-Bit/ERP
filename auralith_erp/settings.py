@@ -161,6 +161,9 @@ LOGIN_REDIRECT_URL = 'dashboard'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Monthly attendance submits one field per student for every day in the month.
+DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.environ.get('DATA_UPLOAD_MAX_NUMBER_FIELDS', '10000'))
+
 # ---------------------------------------------------------------------------
 # Email — Gmail SMTP, credentials from environment variables only
 # ---------------------------------------------------------------------------

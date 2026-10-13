@@ -29,6 +29,17 @@ def today_bs():
     return ad_to_bs(EnglishDate.today())
 
 
+def bs_month_days(year, month):
+    """Return every valid BS date in a month as (day, YYYY-MM-DD) pairs."""
+    days = []
+    for day in range(1, 33):
+        value = f'{year:04d}-{month:02d}-{day:02d}'
+        if not validate_bs_date(value):
+            break
+        days.append((day, value))
+    return days
+
+
 def validate_bs_date(bs_date_str):
     try:
         parts = bs_date_str.strip().split(BS_SEPARATOR)

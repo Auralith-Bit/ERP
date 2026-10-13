@@ -9,7 +9,7 @@ from functools import wraps
 from pathlib import Path
 from base64 import b64encode
 from datetime import datetime, date as EnglishDate
-from .nepali_utils import today_bs, validate_bs_date
+from .nepali_utils import today_bs, bs_month_days
 from PIL import Image
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -1072,13 +1072,25 @@ def attendance(request):
     if selected_course_id and not courses.filter(pk=selected_course_id).exists():
         selected_course_id = None
         messages.error(request, 'The selected course was not found.')
-    selected_date = request.GET.get('date') or request.POST.get('date') or today_bs()
-    if not validate_bs_date(selected_date):
-        selected_date = today_bs()
-        messages.error(request, 'Choose a valid Nepali calendar date.')
+    current_year, current_month, _ = map(int, today_bs().split('-'))
+    raw_year = request.GET.get('year') or request.POST.get('year') or str(current_year)
+    raw_month = request.GET.get('month') or request.POST.get('month') or str(current_month)
+    try:
+        selected_year = int(raw_year)
+        selected_month = int(raw_month)
+        if not bs_month_days(selected_year, selected_month):
+            raise ValueError
+    except (TypeError, ValueError):
+        selected_year, selected_month = current_year, current_month
+        messages.error(request, 'Choose a valid Nepali calendar year and month.')
+
+    month_days = [
+        {'day': day, 'date': date_value, 'key': date_value.replace('-', '_')}
+        for day, date_value in bs_month_days(selected_year, selected_month)
+    ]
 
     enrollments = []
-    existing_records = {}
+    attendance_rows = []
 
     if selected_course_id:
         enrollments = CourseEnrollment.objects.filter(
@@ -1088,22 +1100,36 @@ def attendance(request):
 
         existing = Attendance.objects.filter(
             course_id=selected_course_id,
-            date=selected_date
+            date__gte=month_days[0]['date'],
+            date__lte=month_days[-1]['date'],
         )
+        records_by_student = {}
         for rec in existing:
-            existing_records[rec.student_id] = rec.status
+            records_by_student.setdefault(rec.student_id, {})[rec.date] = rec.status
+        attendance_rows = [
+            {
+                'enrollment': enrollment,
+                'statuses': records_by_student.get(enrollment.student_id, {}),
+            }
+            for enrollment in enrollments
+        ]
 
     if request.method == 'POST':
         course_id = request.POST.get('course_id')
-        att_date = request.POST.get('date')
+        try:
+            post_year = int(request.POST.get('year', ''))
+            post_month = int(request.POST.get('month', ''))
+            post_month_days = bs_month_days(post_year, post_month)
+        except (TypeError, ValueError):
+            post_month_days = []
         try:
             course_id = int(course_id)
         except (TypeError, ValueError):
             course_id = None
-        if not course_id or not courses.filter(pk=course_id).exists() or not validate_bs_date(att_date):
-            messages.error(request, 'Choose a valid course and Nepali calendar date before saving attendance.')
+        if not course_id or not courses.filter(pk=course_id).exists() or not post_month_days:
+            messages.error(request, 'Choose a valid course and Nepali calendar month before saving attendance.')
             return redirect('attendance')
-        if course_id and att_date:
+        if course_id:
             active_enrollments = CourseEnrollment.objects.filter(
                 course_id=course_id,
                 status='active'
@@ -1112,28 +1138,37 @@ def attendance(request):
             saved = 0
             for enrollment in active_enrollments:
                 sid = str(enrollment.student_id)
-                status = request.POST.get(f'status_{sid}')
-                if status in ('P', 'A', 'L'):
-                    Attendance.objects.update_or_create(
-                        student_id=enrollment.student_id,
-                        course_id=course_id,
-                        date=att_date,
-                        defaults={
-                            'status': status,
-                            'marked_by': request.user,
-                        }
-                    )
-                    saved += 1
+                for day, att_date in post_month_days:
+                    status = request.POST.get(f'status_{sid}_{att_date.replace("-", "_")}')
+                    if status in ('P', 'A', 'L'):
+                        Attendance.objects.update_or_create(
+                            student_id=enrollment.student_id,
+                            course_id=course_id,
+                            date=att_date,
+                            defaults={
+                                'status': status,
+                                'marked_by': request.user,
+                            }
+                        )
+                        saved += 1
             if saved:
-                messages.success(request, f'Attendance saved for {saved} student(s).')
-            return redirect(f'{reverse("attendance")}?course_id={course_id}&date={att_date}')
+                messages.success(request, f'Saved {saved} attendance mark(s) for {post_month:02d}/{post_year} BS.')
+            return redirect(f'{reverse("attendance")}?course_id={course_id}&year={post_year}&month={post_month}')
+
+    nepali_months = [
+        'Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin',
+        'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra',
+    ]
 
     context = {
         'courses': courses,
         'selected_course_id': selected_course_id,
-        'selected_date': selected_date,
+        'selected_year': selected_year,
+        'selected_month': selected_month,
+        'nepali_months': enumerate(nepali_months, start=1),
+        'month_days': month_days,
         'enrollments': enrollments,
-        'existing_records': existing_records,
+        'attendance_rows': attendance_rows,
         'is_admin': has_role(request.user, SUPER_ADMIN, TEACHING_STAFF),
     }
     return render(request, 'erp_app/attendance.html', context)

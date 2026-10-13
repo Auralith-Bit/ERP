@@ -93,8 +93,9 @@ For Gmail, use an **App Password** instead of your normal Gmail password.
 - Error messages displayed on the same page without losing form data
 
 ### Attendance Management
-- Mark student attendance per course with Nepali (BS) date picker (Nepali DatePicker CDN)
-- Status options: Present (P), Absent (A), Late (L) with bulk action buttons (All Present/Absent/Late)
+- Record and review student attendance in a month-by-month register using Nepali Bikram Sambat years and all 12 calendar months
+- Mark Present, Absent, or Late for each active student on each valid day in a selected Nepali month; existing marks load for editing
+- Status options: Present (P), Absent (A), and Late (L), editable in the monthly register
 - Restricted to Super Admin and Teaching Staff roles
 - Attendance data stored with Nepali BS dates using `nepali-datetime` library
 - Unique constraint: one record per student per course per date
