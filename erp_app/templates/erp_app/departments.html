@@ -7,7 +7,7 @@
         <p>{{ departments|length }} department(s)</p>
     </div>
     {% if is_admin %}
-    <a href="{% url 'admin:erp_app_department_add' %}" class="btn-primary"><i class="ph ph-plus"></i> Add Department</a>
+    <a href="{% url 'department_add' %}" class="btn-primary"><i class="ph ph-plus"></i> Add Department</a>
     {% endif %}
 </header>
 
@@ -28,12 +28,13 @@
                 {% endfor %}
             </ul>
         </div>
-        <div style="padding:15px 20px;border-top:1px solid #F1F5F9;">
-            <a href="{% url 'admin:erp_app_department_change' dept.id %}" class="btn-outline" style="text-decoration:none;font-size:12px;padding:8px 16px;display:inline-block;">Manage</a>
+        <div style="padding:15px 20px;border-top:1px solid #F1F5F9;display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="{% url 'department_edit' dept.id %}" class="btn-outline" style="text-decoration:none;font-size:12px;padding:8px 16px;display:inline-block;">Edit</a>
+            <form method="post" action="{% url 'department_delete' dept.id %}" onsubmit="return confirm('Delete this department?');" style="display:inline;">{% csrf_token %}<button type="submit" class="btn-danger" style="padding:8px 16px;font-size:12px;">Delete</button></form>
         </div>
     </div>
     {% empty %}
-    <p style="color:#94a3b8;">No departments yet. <a href="{% url 'admin:erp_app_department_add' %}">Create one</a>.</p>
+    <p style="color:#94a3b8;">No departments yet. <a href="{% url 'department_add' %}">Create one</a>.</p>
     {% endfor %}
 </div>
 {% endblock %}

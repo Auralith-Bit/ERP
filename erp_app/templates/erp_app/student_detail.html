@@ -37,7 +37,12 @@
             {{ payment_form.as_p }}
             <button class="btn-primary" type="submit">Record Payment</button>
           </form>
-          <ul style="padding-left:18px;">{% for payment in enrollment.payments.all %}<li>Rs. {{ payment.amount|floatformat:2 }} · {{ payment.payment_date|date:'M d, Y' }}{% if payment.transaction_id %} · {{ payment.transaction_id }}{% endif %}</li>{% empty %}<li>No payments recorded.</li>{% endfor %}</ul>
+          <ul style="padding-left:18px;">{% for payment in enrollment.payments.all %}<li style="margin-bottom:8px;">Rs. {{ payment.amount|floatformat:2 }} · {{ payment.payment_date|date:'M d, Y' }}{% if payment.transaction_id %} · {{ payment.transaction_id }}{% endif %}
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+              <a href="{% url 'payment_edit' payment.id %}" class="btn-outline" style="padding:4px 8px;font-size:11px;text-decoration:none;">Edit</a>
+              <form method="post" action="{% url 'payment_delete' payment.id %}" onsubmit="return confirm('Delete this payment?');" style="display:inline;">{% csrf_token %}<button type="submit" class="btn-danger" style="padding:4px 8px;font-size:11px;">Delete</button></form>
+            </div>
+          </li>{% empty %}<li>No payments recorded.</li>{% endfor %}</ul>
         </details>
       </td>
     </tr>

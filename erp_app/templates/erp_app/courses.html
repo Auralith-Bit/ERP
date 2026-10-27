@@ -8,7 +8,7 @@
         <p>Manage training programs and student enrollment</p>
     </div>
     {% if is_admin %}
-    <a href="{% url 'admin:erp_app_course_add' %}" class="btn-primary"><i class="ph ph-plus"></i> Create New Course</a>
+    <a href="{% url 'course_add' %}" class="btn-primary"><i class="ph ph-plus"></i> Create New Course</a>
     {% endif %}
 </header>
 
@@ -35,16 +35,17 @@
                 <div class="progress-bar"><div style="width: {{ course.completion_percent }}%;"></div></div>
             </div>
         </div>
-        <div class="course-footer">
+        <div class="course-footer" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-start;">
             <a href="{% url 'course_syllabus' course.id %}" class="btn-outline">View Syllabus</a>
             <a href="{% url 'certificates' %}?type=course&q={{ course.name|urlencode }}" class="btn-outline"><i class="ph ph-certificate"></i> Certificates</a>
             {% if is_admin %}
-            <a href="{% url 'admin:erp_app_course_change' course.id %}" class="btn-filled">Manage Students</a>
+            <a href="{% url 'course_edit' course.id %}" class="btn-outline">Edit</a>
+            <form method="post" action="{% url 'course_delete' course.id %}" onsubmit="return confirm('Delete this course?');" style="display:inline;">{% csrf_token %}<button type="submit" class="btn-danger">Delete</button></form>
             {% endif %}
         </div>
     </div>
     {% empty %}
-    <p style="color:#94a3b8;">No courses found. <a href="{% url 'admin:erp_app_course_add' %}">Create one</a>.</p>
+    <p style="color:#94a3b8;">No courses found. <a href="{% url 'course_add' %}">Create one</a>.</p>
     {% endfor %}
 </div>
 {% endblock %}

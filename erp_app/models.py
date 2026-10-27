@@ -178,6 +178,16 @@ class Certificate(models.Model):
         return f"{self.certificate_number} - {self.student.name}"
 
     @property
+    def effective_program_start_date(self):
+        if self.program_start_date:
+            return self.program_start_date
+        if self.student and self.student.enrolled_date:
+            return self.student.enrolled_date.strftime('%Y/%m/%d')
+        if self.issue_date:
+            return self.issue_date.strftime('%Y/%m/%d')
+        return ''
+
+    @property
     def ceo_founder_name(self):
         return 'Aakriti Bista'
 
@@ -251,6 +261,18 @@ class Certificate(models.Model):
     def save(self, *args, **kwargs):
         if not self.certificate_number:
             self.certificate_number = Certificate.generate_certificate_number()
+
+        if not self.program_start_date:
+            enrolled_date = getattr(self.student, 'enrolled_date', None) if self.student else None
+            if isinstance(enrolled_date, str):
+                try:
+                    enrolled_date = datetime.datetime.strptime(enrolled_date, '%Y-%m-%d').date()
+                except (TypeError, ValueError):
+                    enrolled_date = None
+            if enrolled_date:
+                self.program_start_date = enrolled_date.strftime('%Y/%m/%d')
+            elif self.issue_date:
+                self.program_start_date = self.issue_date.strftime('%Y/%m/%d')
 
         tracked_fields = {'student_id', 'course_id', 'program_title', 'certificate_type', 'program_start_date',
                           'location', 'authorized_signer_name', 'authorized_signer_title',
@@ -388,6 +410,38 @@ class ProjectPayment(models.Model):
 
     def __str__(self):
         return f'{self.amount} paid for {self.project.name}'
+
+
+class Expense(models.Model):
+    CATEGORY_CHOICES = [
+        ('rent', 'Rent'),
+        ('salaries', 'Salaries'),
+        ('utilities', 'Utilities'),
+        ('software', 'Software & Subscriptions'),
+        ('marketing', 'Marketing'),
+        ('travel', 'Travel'),
+        ('maintenance', 'Maintenance'),
+        ('office', 'Office Supplies'),
+        ('other', 'Other'),
+    ]
+    month = models.DateField(help_text='Select the first day of the month for this expense record.')
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default='other')
+    description = models.CharField(max_length=255)
+    vendor = models.CharField(max_length=200, blank=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-month', '-created_at']
+
+    def __str__(self):
+        return f'{self.get_category_display()} - {self.month:%b %Y} - Rs. {self.amount}'
+
+    @property
+    def month_label(self):
+        return self.month.strftime('%B %Y')
 
 
 class Bill(models.Model):

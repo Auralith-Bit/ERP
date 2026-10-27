@@ -8,7 +8,7 @@ import qrcode
 from functools import wraps
 from pathlib import Path
 from base64 import b64encode
-from datetime import datetime, date as EnglishDate
+from datetime import datetime, date as EnglishDate, date
 from .nepali_utils import today_bs, bs_month_days
 from PIL import Image
 from django.conf import settings
@@ -23,6 +23,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.apps import apps
+from urllib.parse import quote
 from django.urls import reverse, NoReverseMatch
 from django.http import JsonResponse, HttpResponse, FileResponse, Http404
 from django.template.loader import render_to_string
@@ -34,8 +35,22 @@ from django.core.files.base import ContentFile
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.html import strip_tags
 from .models import Course, Mentor, Student, Project, Employee, Department, Notification, IDCard, Certificate, CourseEnrollment, Payment, PasswordResetCode, Attendance
-from .models import ProjectPayment, Bill
-from .forms import CourseEnrollmentForm, EnrollmentFeeForm, PaymentForm, ProjectForm, ProjectPaymentForm, StaffAccountForm, StudentCertificateForm, StudentForm
+from .models import ProjectPayment, Bill, Expense
+from .forms import (
+    CourseEnrollmentForm,
+    CourseForm,
+    DepartmentForm,
+    EmployeeForm,
+    EnrollmentFeeForm,
+    ExpenseForm,
+    MentorForm,
+    PaymentForm,
+    ProjectForm,
+    ProjectPaymentForm,
+    StaffAccountForm,
+    StudentCertificateForm,
+    StudentForm,
+)
 logger = logging.getLogger(__name__)
 from .roles import (get_user_roles, has_role,
     SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF, STUDENT, INTERN,
@@ -198,6 +213,168 @@ def staff_account_delete(request, user_id):
         account.delete()
         messages.success(request, f'{name} account deleted.')
     return redirect('staff_accounts')
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def department_add(request):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to add departments.')
+        return redirect('dashboard')
+    form = DepartmentForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        department = form.save()
+        messages.success(request, f'Department {department.name} added.')
+        return redirect('departments')
+    return render(request, 'erp_app/record_form.html', {
+        'form': form,
+        'title': 'Add Department',
+        'subtitle': 'Create a new department or team unit.',
+        'back_url': reverse('departments'),
+        'submit_text': 'Add Department',
+    })
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def department_edit(request, department_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to edit departments.')
+        return redirect('dashboard')
+    department = get_object_or_404(Department, pk=department_id)
+    form = DepartmentForm(request.POST or None, instance=department)
+    if request.method == 'POST' and form.is_valid():
+        department = form.save()
+        messages.success(request, f'Department {department.name} updated.')
+        return redirect('departments')
+    return render(request, 'erp_app/record_form.html', {
+        'form': form,
+        'title': 'Edit Department',
+        'subtitle': 'Update the department details and staffing group.',
+        'back_url': reverse('departments'),
+        'submit_text': 'Save Changes',
+    })
+
+
+@login_required
+@require_POST
+def department_delete(request, department_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to delete departments.')
+        return redirect('dashboard')
+    department = get_object_or_404(Department, pk=department_id)
+    name = department.name
+    department.delete()
+    messages.success(request, f'Department {name} deleted.')
+    return redirect('departments')
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def mentor_add(request):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to add mentors.')
+        return redirect('dashboard')
+    form = MentorForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        mentor = form.save()
+        messages.success(request, f'Mentor {mentor.name} added.')
+        return redirect('mentors')
+    return render(request, 'erp_app/record_form.html', {
+        'form': form,
+        'title': 'Add Mentor',
+        'subtitle': 'Add a mentor and assign their department and specialization.',
+        'back_url': reverse('mentors'),
+        'submit_text': 'Add Mentor',
+    })
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def mentor_edit(request, mentor_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to edit mentors.')
+        return redirect('dashboard')
+    mentor = get_object_or_404(Mentor, pk=mentor_id)
+    form = MentorForm(request.POST or None, instance=mentor)
+    if request.method == 'POST' and form.is_valid():
+        mentor = form.save()
+        messages.success(request, f'Mentor {mentor.name} updated.')
+        return redirect('mentors')
+    return render(request, 'erp_app/record_form.html', {
+        'form': form,
+        'title': 'Edit Mentor',
+        'subtitle': 'Update the mentor profile and course assignment details.',
+        'back_url': reverse('mentors'),
+        'submit_text': 'Save Changes',
+    })
+
+
+@login_required
+@require_POST
+def mentor_delete(request, mentor_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to delete mentors.')
+        return redirect('dashboard')
+    mentor = get_object_or_404(Mentor, pk=mentor_id)
+    name = mentor.name
+    mentor.delete()
+    messages.success(request, f'Mentor {name} deleted.')
+    return redirect('mentors')
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def employee_add(request):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to add employees.')
+        return redirect('dashboard')
+    form = EmployeeForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        employee = form.save()
+        messages.success(request, f'Employee {employee.name} added.')
+        return redirect('employees')
+    return render(request, 'erp_app/record_form.html', {
+        'form': form,
+        'title': 'Add Employee',
+        'subtitle': 'Add a staff, intern, mentor, or admin employee record.',
+        'back_url': reverse('employees'),
+        'submit_text': 'Add Employee',
+    })
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def employee_edit(request, employee_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to edit employees.')
+        return redirect('dashboard')
+    employee = get_object_or_404(Employee, pk=employee_id)
+    form = EmployeeForm(request.POST or None, instance=employee)
+    if request.method == 'POST' and form.is_valid():
+        employee = form.save()
+        messages.success(request, f'Employee {employee.name} updated.')
+        return redirect('employees')
+    return render(request, 'erp_app/record_form.html', {
+        'form': form,
+        'title': 'Edit Employee',
+        'subtitle': 'Update the employee assignment, type, and department.',
+        'back_url': reverse('employees'),
+        'submit_text': 'Save Changes',
+    })
+
+
+@login_required
+@require_POST
+def employee_delete(request, employee_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to delete employees.')
+        return redirect('dashboard')
+    employee = get_object_or_404(Employee, pk=employee_id)
+    name = employee.name
+    employee.delete()
+    messages.success(request, f'Employee {name} deleted.')
+    return redirect('employees')
 
 
 @login_required
@@ -577,6 +754,60 @@ def courses(request):
 
 
 @login_required
+@require_http_methods(['GET', 'POST'])
+def course_add(request):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to add courses.')
+        return redirect('dashboard')
+    form = CourseForm(request.POST or None, request.FILES or None)
+    if request.method == 'POST' and form.is_valid():
+        course = form.save()
+        messages.success(request, f'Course {course.name} added.')
+        return redirect('courses')
+    return render(request, 'erp_app/record_form.html', {
+        'form': form,
+        'title': 'Add Course',
+        'subtitle': 'Create a new learning program, training track, or workshop.',
+        'back_url': reverse('courses'),
+        'submit_text': 'Add Course',
+    })
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def course_edit(request, course_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to edit courses.')
+        return redirect('dashboard')
+    course = get_object_or_404(Course, pk=course_id)
+    form = CourseForm(request.POST or None, request.FILES or None, instance=course)
+    if request.method == 'POST' and form.is_valid():
+        course = form.save()
+        messages.success(request, f'Course {course.name} updated.')
+        return redirect('courses')
+    return render(request, 'erp_app/record_form.html', {
+        'form': form,
+        'title': 'Edit Course',
+        'subtitle': 'Update the course details, mentor, and training status.',
+        'back_url': reverse('courses'),
+        'submit_text': 'Save Changes',
+    })
+
+
+@login_required
+@require_POST
+def course_delete(request, course_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to delete courses.')
+        return redirect('dashboard')
+    course = get_object_or_404(Course, pk=course_id)
+    name = course.name
+    course.delete()
+    messages.success(request, f'Course {name} deleted.')
+    return redirect('courses')
+
+
+@login_required
 def course_syllabus(request, course_id):
     """Render a simple syllabus view or download link for a course."""
     course = get_object_or_404(Course, id=course_id)
@@ -773,6 +1004,11 @@ def protected_media(request, file_path):
     return response
 
 
+def _build_verification_url(payload):
+    base_url = getattr(settings, 'PUBLIC_BASE_URL', None) or 'https://erp.auralithbit.com.np'
+    return f"{base_url.rstrip('/')}{reverse('verify_id_card_page')}?data={quote(payload, safe='')}"
+
+
 def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=None):
     if card_type == 'student':
         try:
@@ -823,10 +1059,14 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
         raise ValueError('Choose a valid card type.')
 
     from PIL import ImageDraw, ImageFont
-    image = Image.new('RGB', (1011, 638), '#F7F9FC')
+    image = Image.new('RGB', (1100, 820), '#E5E4F7')
     draw = ImageDraw.Draw(image)
-    draw.rounded_rectangle((8, 8, 1002, 630), radius=34, fill='#FFFFFF', outline='#1A4B8D', width=10)
-    draw.rounded_rectangle((14, 14, 996, 112), radius=25, fill='#1A4B8D')
+
+    draw.rounded_rectangle((20, 20, 1080, 800), radius=34, fill='#2C1D78', outline='#D9B55D', width=6)
+    draw.rounded_rectangle((55, 55, 1045, 765), radius=28, fill='#F5F7FB', outline='#E6D29A', width=4)
+    draw.rounded_rectangle((55, 55, 1045, 190), radius=20, fill='#4C69D7')
+    draw.rounded_rectangle((65, 65, 1035, 180), radius=18, fill='#2F75D7')
+
     font_dir = Path(ImageFont.__file__).parent / 'fonts'
     regular_fonts = [Path('C:/Windows/Fonts/arial.ttf'), font_dir / 'DejaVuSans.ttf',
                      Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'),
@@ -834,33 +1074,70 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
     bold_fonts = [Path('C:/Windows/Fonts/arialbd.ttf'), font_dir / 'DejaVuSans-Bold.ttf',
                   Path('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'),
                   Path('/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf')]
+
     def choose_font(candidates, size):
         for candidate in candidates:
             if candidate.exists():
                 return ImageFont.truetype(str(candidate), size)
         return ImageFont.load_default()
-    def draw_label(position, text, fill, font):
+
+    def draw_label(position, text, fill, font, anchor='la'):
         try:
-            draw.text(position, text, fill=fill, font=font)
+            draw.text(position, text, fill=fill, font=font, anchor=anchor)
         except UnicodeEncodeError:
-            draw.text(position, text.encode('latin-1', 'replace').decode('latin-1'), fill=fill, font=ImageFont.load_default())
-    draw_label((48, 37), 'AURALITH BIT', '#FFFFFF', choose_font(bold_fonts, 37))
-    draw_label((50, 125), card_heading, '#9A7136', choose_font(regular_fonts, 19))
-    draw_label((50, 184), owner.name[:32], '#153D68', choose_font(bold_fonts, 42))
-    body_font = choose_font(regular_fonts, 25)
-    y = 260
-    for line in details:
-        for wrapped in _wrap_words(line, 34)[:2]:
-            draw_label((55, y), wrapped, '#334155', body_font)
-            y += 43
-        y += 7
+            draw.text(position, text.encode('latin-1', 'replace').decode('latin-1'), fill=fill, font=ImageFont.load_default(), anchor=anchor)
+
+    logo_circle = (430, 86, 610, 266)
+    draw.ellipse(logo_circle, outline='#EBF3FF', width=4, fill=(241, 246, 255))
+    draw.polygon([(520, 100), (560, 165), (480, 165)], fill='#2A5FBF')
+    draw.polygon([(520, 110), (550, 162), (490, 162)], fill='#3AC3D7')
+    draw.arc((490, 132, 550, 192), 0, 180, fill='#0B1C4B', width=3)
+    draw_label((540, 130), 'AURALITH BIT', '#FFFFFF', choose_font(bold_fonts, 42), anchor='mm')
+    draw_label((540, 165), 'DESIGN . DEVELOP . DELIVER', '#D7EBFF', choose_font(regular_fonts, 16), anchor='mm')
+
+    id_chip = (760, 260, 960, 330)
+    draw.rounded_rectangle(id_chip, radius=16, fill='#EEF3FF', outline='#D7E3FA', width=2)
+    draw_label((860, 295), f'ID : {code}', '#1A4B8D', choose_font(regular_fonts, 22), anchor='mm')
+
+    profile_x = 520
+    profile_y = 350
+    draw.ellipse((profile_x - 120, profile_y - 120, profile_x + 120, profile_y + 120), outline='#27C5C5', width=8, fill='#D4F5F0')
+    draw.text((profile_x, profile_y), owner.name[:1].upper(), fill='#0E3B6B', font=choose_font(bold_fonts, 92), anchor='mm')
+
+    draw_label((520, 505), owner.name[:32].upper(), '#1A4B8D', choose_font(bold_fonts, 56), anchor='mm')
+    draw_label((520, 560), 'FULL STACK DEVELOPER' if card_type == 'student' else 'AURALITH BIT STAFF', '#4F5D75', choose_font(regular_fonts, 24), anchor='mm')
+
+    # details panel
+    info_y = 610
+    info_box_left = (110, info_y, 470, info_y + 90)
+    info_box_right = (560, info_y, 980, info_y + 90)
+    draw.rounded_rectangle(info_box_left, radius=14, fill='#F0F4FF', outline='#D9DFEF', width=1)
+    draw.rounded_rectangle(info_box_right, radius=14, fill='#F0F4FF', outline='#D9DFEF', width=1)
+    draw_label((150, info_y + 25), 'DEPARTMENT', '#64748B', choose_font(regular_fonts, 18), anchor='la')
+    if card_type == 'student':
+        dept_value = (course.name if course else 'Software Development')
+    else:
+        dept_value = (employee.department.name if employee.department else 'Auralith Bit')
+    draw_label((150, info_y + 58), dept_value[:26], '#183B69', choose_font(bold_fonts, 20), anchor='la')
+
+    draw_label((600, info_y + 25), 'CONTACT', '#64748B', choose_font(regular_fonts, 18), anchor='la')
+    contact_value = student.phone if card_type == 'student' else employee.phone if hasattr(employee, 'phone') else 'N/A'
+    draw_label((600, info_y + 58), f'+{contact_value}' if contact_value and str(contact_value).startswith('+') else (f'+{contact_value}' if contact_value and contact_value.isdigit() else contact_value or 'N/A'), '#183B69', choose_font(bold_fonts, 20), anchor='la')
+
     qr = qrcode.QRCode(box_size=7, border=2)
-    qr.add_data(signing.dumps(qr_data, salt='auralith-erp.id-card', compress=True))
+    signed_payload = signing.dumps(qr_data, salt='auralith-erp.id-card', compress=True)
+    qr.add_data(_build_verification_url(signed_payload))
     qr.make(fit=True)
-    image.paste(qr.make_image(fill_color='#153D68', back_color='white').convert('RGB').resize((240, 240)), (720, 200))
-    draw_label((762, 455), code, '#1A4B8D', choose_font(regular_fonts, 19))
-    draw.line((48, 562, 963, 562), fill='#D9B55D', width=3)
-    draw_label((50, 577), 'DESIGN | DEVELOP | DELIVER', '#64748B', choose_font(regular_fonts, 19))
+    qr_image = qr.make_image(fill_color='#1A4B8D', back_color='white').convert('RGB').resize((170, 170))
+    image.paste(qr_image, (760, 610))
+
+    draw.rounded_rectangle((720, 610, 950, 780), radius=18, fill='#FFFFFF', outline='#11C6C2', width=4)
+    draw.ellipse((820, 660, 880, 720), fill='#19C8B6')
+    draw_label((860, 735), 'VERIFIED', '#1D4ED8', choose_font(regular_fonts, 18), anchor='mm')
+
+    draw.line((70, 735, 1030, 735), fill='#DDB857', width=3)
+    draw_label((540, 758), 'AURALITH BIT | BHAIRAHAWA, SNP-08 | 9766715783', '#1D4ED8', choose_font(bold_fonts, 24), anchor='mm')
+
     output = io.BytesIO()
     image.save(output, format='PNG', optimize=True)
     card = existing_card or IDCard(card_type=card_type, student=owner if card_type == 'student' else None,
@@ -924,6 +1201,180 @@ def budget_fees(request):
         'is_admin': has_role(request.user, SUPER_ADMIN, NORMAL_STAFF),
     }
     return render(request, 'erp_app/budget_fees.html', context)
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def monthly_expenses(request):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to manage company expenses.')
+        return redirect('dashboard')
+
+    form = ExpenseForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        expense = form.save(commit=False)
+        expense.recorded_by = request.user
+        expense.save()
+        messages.success(request, f'Expense entry recorded for {expense.month.strftime("%B %Y")}.')
+        return redirect(f"{reverse('monthly_expenses')}?month={expense.month.strftime('%Y-%m')}")
+
+    selected_month = request.GET.get('month') or date.today().strftime('%Y-%m')
+    expenses = Expense.objects.select_related('recorded_by').all()
+    try:
+        year, month = selected_month.split('-', 1)
+        expenses = expenses.filter(month__year=year, month__month=month)
+    except ValueError:
+        expenses = Expense.objects.none()
+
+    month_totals = {}
+    all_expenses = Expense.objects.select_related('recorded_by').all()
+    for expense in all_expenses:
+        key = expense.month.strftime('%Y-%m')
+        if key not in month_totals:
+            month_totals[key] = {'month': expense.month, 'label': expense.month.strftime('%B %Y'), 'total': 0, 'count': 0}
+        month_totals[key]['total'] += expense.amount
+        month_totals[key]['count'] += 1
+
+    ordered_month_totals = sorted(month_totals.values(), key=lambda item: item['month'], reverse=True)
+
+    income_month_start = datetime.strptime(f'{selected_month}-01', '%Y-%m-%d').date()
+    month_income = 0
+    if income_month_start:
+        month_enrollments = CourseEnrollment.objects.prefetch_related('payments')
+        for enrollment in month_enrollments:
+            month_income += sum(
+                payment.amount for payment in enrollment.payments.all()
+                if payment.payment_date.date().year == income_month_start.year and payment.payment_date.date().month == income_month_start.month
+            )
+        project_income = 0
+        for project in Project.objects.prefetch_related('payments'):
+            project_income += sum(
+                payment.amount for payment in project.payments.all()
+                if payment.payment_date.date().year == income_month_start.year and payment.payment_date.date().month == income_month_start.month
+            )
+        month_income += project_income
+
+    month_expense_total = sum((expense.amount for expense in expenses), 0)
+    month_balance = month_income - month_expense_total
+
+    context = {
+        'form': form,
+        'expenses': expenses,
+        'monthly_totals': ordered_month_totals,
+        'total_expenses': sum((expense.amount for expense in Expense.objects.all()), 0),
+        'selected_month': selected_month,
+        'month_income': month_income,
+        'month_expense_total': month_expense_total,
+        'month_balance': month_balance,
+        'is_admin': True,
+    }
+    return render(request, 'erp_app/monthly_expenses.html', context)
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def expense_edit(request, expense_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to edit company expenses.')
+        return redirect('dashboard')
+    expense = get_object_or_404(Expense, pk=expense_id)
+    form = ExpenseForm(request.POST or None, instance=expense)
+    if request.method == 'POST' and form.is_valid():
+        expense = form.save(commit=False)
+        expense.recorded_by = request.user
+        expense.save()
+        messages.success(request, f'Expense entry for {expense.month.strftime("%B %Y")} updated.')
+        return redirect(f"{reverse('monthly_expenses')}?month={expense.month.strftime('%Y-%m')}")
+    return render(request, 'erp_app/record_form.html', {
+        'form': form,
+        'title': 'Edit Expense',
+        'subtitle': 'Update the expense record for this month.',
+        'back_url': reverse('monthly_expenses'),
+        'submit_text': 'Save Expense',
+    })
+
+
+@login_required
+@require_POST
+def delete_monthly_expense(request, expense_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to delete company expenses.')
+        return redirect('dashboard')
+
+    expense = get_object_or_404(Expense, pk=expense_id)
+    expense.delete()
+    messages.success(request, 'Expense record removed.')
+    return redirect('monthly_expenses')
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def payment_edit(request, payment_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to edit payments.')
+        return redirect('dashboard')
+    payment = get_object_or_404(Payment, pk=payment_id)
+    form = PaymentForm(request.POST or None, instance=payment)
+    if request.method == 'POST' and form.is_valid():
+        payment = form.save()
+        messages.success(request, f'Payment of Rs. {payment.amount} updated.')
+        return redirect('student_detail', student_id=payment.enrollment.student_id)
+    return render(request, 'erp_app/record_form.html', {
+        'form': form,
+        'title': 'Edit Payment',
+        'subtitle': 'Update a previous student payment entry.',
+        'back_url': reverse('student_detail', kwargs={'student_id': payment.enrollment.student_id}),
+        'submit_text': 'Save Payment',
+    })
+
+
+@login_required
+@require_POST
+def payment_delete(request, payment_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to delete payments.')
+        return redirect('dashboard')
+    payment = get_object_or_404(Payment, pk=payment_id)
+    student_id = payment.enrollment.student_id
+    amount = payment.amount
+    payment.delete()
+    messages.success(request, f'Payment of Rs. {amount} deleted.')
+    return redirect('student_detail', student_id=student_id)
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def project_payment_edit(request, payment_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to edit project payments.')
+        return redirect('dashboard')
+    payment = get_object_or_404(ProjectPayment, pk=payment_id)
+    form = ProjectPaymentForm(request.POST or None, instance=payment)
+    if request.method == 'POST' and form.is_valid():
+        payment = form.save()
+        messages.success(request, f'Project payment of Rs. {payment.amount} updated.')
+        return redirect('project_detail', project_id=payment.project_id)
+    return render(request, 'erp_app/record_form.html', {
+        'form': form,
+        'title': 'Edit Project Payment',
+        'subtitle': 'Adjust the payment for this project invoice.',
+        'back_url': reverse('project_detail', kwargs={'project_id': payment.project_id}),
+        'submit_text': 'Save Payment',
+    })
+
+
+@login_required
+@require_POST
+def project_payment_delete(request, payment_id):
+    if not _can_manage_company_records(request.user):
+        messages.error(request, 'You do not have permission to delete project payments.')
+        return redirect('dashboard')
+    payment = get_object_or_404(ProjectPayment, pk=payment_id)
+    project_id = payment.project_id
+    amount = payment.amount
+    payment.delete()
+    messages.success(request, f'Project payment of Rs. {amount} deleted.')
+    return redirect('project_detail', project_id=project_id)
 
 
 @login_required
@@ -1374,10 +1825,11 @@ def generate_student_id(request):
             'enrolled_date': student.enrolled_date.strftime('%Y-%m-%d'),
             'date_generated': date_generated
         })
-        
-        # Generate QR code with all details
+
+        # Generate QR code with a public verification page
+        payload = signing.dumps(json.loads(qr_data), salt='auralith-erp.id-card', compress=True)
         qr = qrcode.QRCode(version=None, box_size=10, border=5)
-        qr.add_data(signing.dumps(json.loads(qr_data), salt='auralith-erp.id-card', compress=True))
+        qr.add_data(_build_verification_url(payload))
         qr.make(fit=True)
         
         img = qr.make_image(fill_color="black", back_color="white")
@@ -1439,10 +1891,11 @@ def generate_employee_id(request):
             'joined_date': employee.joined_date.strftime('%Y-%m-%d'),
             'date_generated': date_generated
         })
-        
-        # Generate QR code with all details
+
+        # Generate QR code with a public verification page
+        payload = signing.dumps(json.loads(qr_data), salt='auralith-erp.id-card', compress=True)
         qr = qrcode.QRCode(version=None, box_size=10, border=5)
-        qr.add_data(signing.dumps(json.loads(qr_data), salt='auralith-erp.id-card', compress=True))
+        qr.add_data(_build_verification_url(payload))
         qr.make(fit=True)
         
         img = qr.make_image(fill_color="black", back_color="white")
@@ -1469,8 +1922,38 @@ def generate_employee_id(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@login_required
-@require_http_methods(["POST"])
+@require_http_methods(["GET"])
+def verify_id_card_page(request):
+    payload = request.GET.get('data', '')
+    context = {'verified': False, 'message': 'Invalid QR verification link.'}
+
+    if payload:
+        try:
+            qr_data = signing.loads(payload, salt='auralith-erp.id-card')
+        except Exception:
+            try:
+                qr_data = json.loads(payload)
+            except Exception:
+                qr_data = None
+        if isinstance(qr_data, dict):
+            context = {
+                'verified': True,
+                'organization': 'Auralith Bit',
+                'card_type': qr_data.get('type', 'Unknown'),
+                'card_id': qr_data.get('id', 'Unknown'),
+                'name': qr_data.get('name', 'Unknown'),
+                'email': qr_data.get('email', 'N/A'),
+                'phone': qr_data.get('phone', qr_data.get('role', 'N/A')),
+                'department': qr_data.get('department', qr_data.get('course', 'N/A')),
+                'role': qr_data.get('role', qr_data.get('employee_type', 'Verified Member')),
+                'enrolled_date': qr_data.get('enrolled_date', qr_data.get('joined_date', 'N/A')),
+                'category': qr_data.get('category', ''),
+                'message': 'Verified member of Auralith Bit',
+            }
+    return render(request, 'erp_app/verify_id_card.html', context)
+
+
+@require_http_methods(['POST'])
 def verify_id_card(request):
     """Verify and display ID card details from scanned QR code data"""
     if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF):

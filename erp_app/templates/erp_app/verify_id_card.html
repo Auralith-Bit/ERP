@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auralith Bit Verification</title>
+    <style>
+        :root {
+            --auralith-blue: #1a4b8d;
+            --auralith-indigo: #4f46e5;
+            --auralith-purple: #6d5ef4;
+            --auralith-gold: #c89b3c;
+            --bg: #edf5ff;
+            --card: #f4f7fb;
+            --text: #12355c;
+            --muted: #5a6b82;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1d4ed8 0%, #6941d7 55%, #4c1d95 100%);
+            font-family: Arial, sans-serif;
+            color: var(--text);
+        }
+        .id-card {
+            width: min(680px, 92vw);
+            background: linear-gradient(180deg, #f5f7fb 0%, #edf1f8 100%);
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(13, 23, 56, 0.22);
+            border: 4px solid rgba(200,155,60,0.9);
+        }
+        .top-strip {
+            background: linear-gradient(90deg, #1d63ba, #5a5be0, #6f4fd4);
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+        }
+        .brand-mark {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.85);
+            display: grid;
+            place-items: center;
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .brand-text h1 {
+            margin: 0;
+            font-size: clamp(30px, 3vw, 44px);
+            color: #fff;
+            letter-spacing: 1px;
+        }
+        .brand-text p {
+            margin: 4px 0 0;
+            text-align: center;
+            color: rgba(255,255,255,0.82);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 12px;
+        }
+        .content {
+            padding: 26px 28px 20px;
+        }
+        .status {
+            width: fit-content;
+            margin: 0 auto 20px;
+            background: rgba(26,75,141,0.08);
+            color: var(--auralith-blue);
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 13px;
+        }
+        .profile-wrap {
+            width: 180px;
+            height: 180px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            padding: 6px;
+            background: linear-gradient(135deg, #22d3ee, #14b8a6, #2dd4bf);
+            box-shadow: 0 8px 30px rgba(31, 41, 55, 0.12);
+        }
+        .profile-ring {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0, #e0f2fe);
+            display: grid;
+            place-items: center;
+            font-size: 72px;
+            color: #1f2937;
+            font-weight: 700;
+        }
+        .name {
+            text-align: center;
+            font-size: clamp(32px, 4vw, 58px);
+            font-weight: 900;
+            color: var(--auralith-blue);
+            line-height: 1;
+            margin: 0 0 8px;
+            letter-spacing: 1px;
+        }
+        .role {
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-size: clamp(13px, 2vw, 18px);
+            color: var(--muted);
+            margin-bottom: 18px;
+            font-weight: 700;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px 22px;
+            padding: 10px 18px 0;
+            border-top: 1px solid rgba(26,75,141,0.18);
+        }
+        .info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .label {
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .value {
+            color: var(--text);
+            font-size: clamp(15px, 2.2vw, 24px);
+            font-weight: 700;
+            word-break: break-word;
+        }
+        .footer {
+            margin-top: 22px;
+            background: linear-gradient(90deg, #1a4b8d, #4f46e5);
+            color: #fff;
+            padding: 14px 18px;
+            text-align: center;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+        @media (max-width: 560px) {
+            .info-grid { grid-template-columns: 1fr; }
+            .brand-text h1 { font-size: 28px; }
+            .name { font-size: 34px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="id-card">
+        <div class="top-strip">
+            <div class="brand-mark">A</div>
+            <div class="brand-text">
+                <h1>AURALITH BIT</h1>
+                <p>Design. Develop. Deliver.</p>
+            </div>
+        </div>
+        <div class="content">
+            {% if verified %}
+                <div class="status">Verified</div>
+                <div class="profile-wrap"><div class="profile-ring">{{ name|slice:':1'|upper }}</div></div>
+                <h2 class="name">{{ name }}</h2>
+                <div class="role">{{ role }}</div>
+                <div class="info-grid">
+                    <div class="info">
+                        <div class="label">Member ID</div>
+                        <div class="value">{{ card_id }}</div>
+                    </div>
+                    <div class="info">
+                        <div class="label">Organization</div>
+                        <div class="value">{{ organization }}</div>
+                    </div>
+                    <div class="info">
+                        <div class="label">Email</div>
+                        <div class="value">{{ email }}</div>
+                    </div>
+                    <div class="info">
+                        <div class="label">Contact</div>
+                        <div class="value">{{ phone }}</div>
+                    </div>
+                    <div class="info">
+                        <div class="label">Department / Course</div>
+                        <div class="value">{{ department }}</div>
+                    </div>
+                    <div class="info">
+                        <div class="label">Joined / Enrolled</div>
+                        <div class="value">{{ enrolled_date }}</div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="status" style="background:#fee2e2;color:#991b1b;">Invalid</div>
+                <div class="name" style="font-size:32px;">Verification Failed</div>
+                <div class="role">{{ message }}</div>
+            {% endif %}
+        </div>
+        <div class="footer">Verified member of Auralith Bit</div>
+    </div>
+</body>
+</html>

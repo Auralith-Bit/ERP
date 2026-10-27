@@ -69,6 +69,7 @@
                 {% endif %}
                 {% if is_normal_staff or is_super_admin %}
                 <a href="{% url 'budget_fees' %}" {% if request.resolver_match.url_name == 'budget_fees' %}class="active"{% endif %}><i class="ph ph-money"></i> Budget & Fees</a>
+                <a href="{% url 'monthly_expenses' %}" {% if request.resolver_match.url_name == 'monthly_expenses' or request.resolver_match.url_name == 'delete_monthly_expense' %}class="active"{% endif %}><i class="ph ph-wallet"></i> Monthly Expenses</a>
                 {% endif %}
                 {% if is_teaching_staff or is_super_admin %}
                 <a href="{% url 'attendance' %}" {% if request.resolver_match.url_name == 'attendance' %}class="active"{% endif %}><i class="ph ph-clipboard-text"></i> Attendance</a>
@@ -111,7 +112,7 @@
                         <div id="notificationsList" style="max-height:260px;overflow:auto;"></div>
                     </div>
                     <div class="avatar">{{ user_initials }}</div>
-                    <span>{{ request.user.get_full_name|default:request.user.username }}</span>
+                    <span>{{ user_display_name|default:request.user.username }}</span>
                     <form method="post" action="{% url 'logout' %}" style="display:inline;">{% csrf_token %}<button type="submit" class="logout-link" title="Logout" aria-label="Logout" style="background:none;border:0;cursor:pointer;"><i class="ph ph-sign-out"></i></button></form>
                 </div>
             </header>

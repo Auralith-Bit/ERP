@@ -7,7 +7,7 @@
         <p>{{ employees|length }} employee(s)</p>
     </div>
     {% if is_admin %}
-    <a href="{% url 'admin:erp_app_employee_add' %}" class="btn-primary"><i class="ph ph-plus"></i> Add Employee</a>
+    <a href="{% url 'employee_add' %}" class="btn-primary"><i class="ph ph-plus"></i> Add Employee</a>
     {% endif %}
 </header>
 
@@ -28,6 +28,7 @@
                 <th>Role</th>
                 <th>Type</th>
                 <th>Joined</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -39,9 +40,22 @@
                 <td>{{ emp.role|default:"—" }}</td>
                 <td><span class="tag {% if emp.employee_type == 'mentor' or emp.employee_type == 'admin' %}live{% endif %}">{{ emp.get_employee_type_display }}</span></td>
                 <td>{{ emp.joined_date|date:"M d, Y" }}</td>
+                <td>
+                    {% if is_admin %}
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        {% if emp.employee_type == 'mentor' %}
+                        <a href="{% url 'mentor_edit' emp.id %}" class="btn-outline" style="text-decoration:none;font-size:12px;padding:6px 10px;display:inline-block;">Edit</a>
+                        <form method="post" action="{% url 'mentor_delete' emp.id %}" onsubmit="return confirm('Delete this mentor?');" style="display:inline;">{% csrf_token %}<button type="submit" class="btn-danger" style="padding:6px 10px;font-size:12px;">Delete</button></form>
+                        {% else %}
+                        <a href="{% url 'employee_edit' emp.id %}" class="btn-outline" style="text-decoration:none;font-size:12px;padding:6px 10px;display:inline-block;">Edit</a>
+                        <form method="post" action="{% url 'employee_delete' emp.id %}" onsubmit="return confirm('Delete this employee?');" style="display:inline;">{% csrf_token %}<button type="submit" class="btn-danger" style="padding:6px 10px;font-size:12px;">Delete</button></form>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </td>
             </tr>
             {% empty %}
-            <tr><td colspan="6" style="text-align:center;color:#94a3b8;">No employees found.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:#94a3b8;">No employees found.</td></tr>
             {% endfor %}
         </tbody>
     </table>

@@ -1,5 +1,6 @@
 import json
 import tempfile
+from datetime import datetime
 
 from django.contrib.auth.models import Group, User
 from django.core import signing
@@ -8,7 +9,8 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .forms import StaffAccountForm, StudentForm
-from .models import Course, Department, IDCard, Mentor, Student
+from .context_processors import sidebar_stats
+from .models import Certificate, Course, CourseEnrollment, Department, Expense, IDCard, Mentor, Payment, Project, ProjectPayment, Student
 
 
 class ErpSecurityRegressionTests(TestCase):
@@ -148,9 +150,135 @@ class ErpSecurityRegressionTests(TestCase):
         )
         self.assertRedirects(response, reverse('dashboard'), fetch_redirect_response=False)
 
+    def test_certificate_uses_enrollment_date_when_no_start_date_is_set(self):
+        course = Course.objects.create(name='Audit Course')
+        self.student.enrolled_date = '2026-09-18'
+        self.student.save(update_fields=['enrolled_date'])
+
+        cert = Certificate.objects.create(
+            student=self.student,
+            course=course,
+            certificate_type='course',
+            program_title='Audit Course',
+            program_start_date='',
+            location='Auralith Bit',
+        )
+
+        self.assertEqual(cert.program_start_date, '2026/09/18')
+
+    def test_superuser_display_name_uses_admin_label(self):
+        self.admin.first_name = 'Anshu'
+        self.admin.last_name = 'Thapa'
+        self.admin.save(update_fields=['first_name', 'last_name'])
+
+        context = sidebar_stats(type('Req', (), {'user': self.admin, 'path': '/dashboard/'} )())
+        self.assertEqual(context['user_display_name'], 'Auralith Bit Admin')
+
+    def test_monthly_expenses_page_allows_admin_management(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse('monthly_expenses'))
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(reverse('monthly_expenses'), {
+            'month': '2026-10-01',
+            'category': 'rent',
+            'description': 'Office rent',
+            'vendor': 'Auralith Bit Office',
+            'amount': '35000',
+            'notes': 'Monthly office rent',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Expense.objects.filter(description='Office rent', amount='35000').exists())
+
+        expense = Expense.objects.get(description='Office rent')
+        self.assertIn('2026-10', response.url)
+        self.assertEqual(self.client.get(f"{reverse('monthly_expenses')}?month=2026-10").context['monthly_totals'][0]['total'], 35000)
+
+        delete_response = self.client.post(reverse('delete_monthly_expense', args=[expense.pk]))
+        self.assertEqual(delete_response.status_code, 302)
+        self.assertFalse(Expense.objects.filter(pk=expense.pk).exists())
+
+    def test_monthly_expense_dashboard_shows_income_expense_and_balance(self):
+        course = Course.objects.create(name='Monthly Finance Course')
+        enrollment = CourseEnrollment.objects.create(student=self.student, course=course, total_fee=5000)
+        Payment.objects.create(
+            enrollment=enrollment,
+            amount=5000,
+            payment_date=datetime(2026, 10, 5),
+            transaction_id='TX-1',
+        )
+        project = Project.objects.create(name='Auralith Growth', client='Auralith Bit', budget=20000)
+        ProjectPayment.objects.create(
+            project=project,
+            amount=9000,
+            payment_date=datetime(2026, 10, 12),
+            reference='INV-1001',
+        )
+        Expense.objects.create(
+            month='2026-10-01',
+            category='rent',
+            description='Office rent',
+            vendor='Auralith Bit Office',
+            amount=35000,
+            recorded_by=self.admin,
+        )
+
+        self.client.force_login(self.admin)
+        response = self.client.get(f"{reverse('monthly_expenses')}?month=2026-10")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['month_income'], 14000)
+        self.assertEqual(response.context['month_expense_total'], 35000)
+        self.assertEqual(response.context['month_balance'], -21000)
+
     def test_department_api_uses_existing_model_fields(self):
         department = Department.objects.create(name='Engineering', description='Product delivery')
         self.client.force_login(self.admin)
         response = self.client.get(reverse('get_departments'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), [{'id': department.pk, 'name': 'Engineering', 'description': 'Product delivery'}])
+
+    def test_hr_and_payment_records_support_edit_and_delete(self):
+        department = Department.objects.create(name='Operations', description='Ops')
+        mentor = Mentor.objects.create(
+            name='Mentor Edit',
+            email='mentor-edit@example.test',
+            specialization='QA & Testing',
+            department=department,
+        )
+        course = Course.objects.create(name='Course CRUD', mentor=mentor, status='live', description='Test course')
+        enrollment = CourseEnrollment.objects.create(student=self.student, course=course, total_fee=1500)
+        payment = Payment.objects.create(enrollment=enrollment, amount=500, transaction_id='TX-EDIT')
+
+        self.client.force_login(self.admin)
+
+        response = self.client.post(reverse('mentor_edit', args=[mentor.pk]), {
+            'name': 'Mentor Updated',
+            'email': 'mentor-edit@example.test',
+            'specialization': 'Quality Assurance',
+            'bio': 'Mentor for QA',
+            'department': department.pk,
+            'joined_date': '2026-01-01',
+        })
+        self.assertEqual(response.status_code, 302)
+        mentor.refresh_from_db()
+        self.assertEqual(mentor.name, 'Mentor Updated')
+
+        response = self.client.post(reverse('payment_edit', args=[payment.pk]), {
+            'amount': '750',
+            'transaction_id': 'TX-UPDATED',
+            'remarks': 'Adjusted payment',
+        })
+        self.assertEqual(response.status_code, 302)
+        payment.refresh_from_db()
+        self.assertEqual(float(payment.amount), 750.0)
+        self.assertEqual(payment.transaction_id, 'TX-UPDATED')
+
+        response = self.client.post(reverse('payment_delete', args=[payment.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Payment.objects.filter(pk=payment.pk).exists())
+
+        response = self.client.post(reverse('course_delete', args=[course.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Course.objects.filter(pk=course.pk).exists())

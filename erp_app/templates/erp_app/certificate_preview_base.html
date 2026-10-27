@@ -1,5 +1,7 @@
 {% load static %}
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Libre+Baskerville:wght@400;700&family=Raleway:wght@500;600;700;800&display=swap');
+
 .certificate-wrapper {
     width: 100%;
     max-width: 900px;
@@ -26,7 +28,7 @@
         radial-gradient(circle at 6% 88%, rgba(41,96,182,0.35), transparent 24%),
         linear-gradient(135deg, #1c61b6 0%, #173f9a 20%, #4d2d9c 58%, #163f91 100%);
     color: #153d68;
-    font-family: Georgia, 'Times New Roman', serif;
+    font-family: 'Libre Baskerville', Georgia, serif;
     padding: 18px;
     position: relative;
     text-align: center;
@@ -94,10 +96,10 @@
 
 .brand-name {
     color: #1A4B8D;
-    font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 32px;
+    font-family: 'Raleway', 'Segoe UI', Arial, sans-serif;
+    font-size: 36px;
     font-weight: 900;
-    letter-spacing: 0;
+    letter-spacing: 1px;
     line-height: 0.95;
     text-transform: uppercase;
 }
@@ -106,10 +108,12 @@
     border-top: 1px solid rgba(26,75,141,0.25);
     color: #475569;
     display: inline-block;
-    font-family: Arial, sans-serif;
+    font-family: 'Raleway', Arial, sans-serif;
     font-size: 12px;
+    letter-spacing: 0.2em;
     margin-top: 4px;
     padding-top: 3px;
+    text-transform: uppercase;
 }
 
 .title-row {
@@ -134,10 +138,10 @@
 
 .cert-title {
     color: #9c7136;
-    font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 30px;
+    font-family: 'Raleway', 'Segoe UI', Arial, sans-serif;
+    font-size: 32px;
     font-weight: 800;
-    letter-spacing: 1px;
+    letter-spacing: 1.6px;
     line-height: 1;
     margin: 0;
     text-transform: uppercase;
@@ -461,7 +465,7 @@ html, body { margin: 0; padding: 0; }
                 <p class="appreciation">We appreciate their commitment to enhancing their skills and wish them continued success in their future endeavors.</p>
 
                 <div class="meta">
-                    <p>Starting Date&nbsp; :&nbsp; {% if certificate.program_start_date %}{{ certificate.program_start_date }}{% else %}{{ certificate.issue_date|date:"Y/m/d" }}{% endif %}</p>
+                    <p>Starting Date&nbsp; :&nbsp; {% if certificate.effective_program_start_date %}{{ certificate.effective_program_start_date }}{% else %}{{ certificate.issue_date|date:"Y/m/d" }}{% endif %}</p>
                     {% if certificate.location %}
                     <p>Location: {{ certificate.location }}</p>
                     {% endif %}

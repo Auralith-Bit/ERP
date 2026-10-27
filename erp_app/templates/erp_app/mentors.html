@@ -7,7 +7,7 @@
         <p>{{ mentors|length }} mentor(s) on the platform</p>
     </div>
     {% if is_admin %}
-    <a href="{% url 'admin:erp_app_mentor_add' %}" class="btn-primary"><i class="ph ph-plus"></i> Add Mentor</a>
+    <a href="{% url 'mentor_add' %}" class="btn-primary"><i class="ph ph-plus"></i> Add Mentor</a>
     {% endif %}
 </header>
 
@@ -40,9 +40,10 @@
             </div>
             {% endif %}
         </div>
-        <div style="padding:15px 20px;border-top:1px solid #F1F5F9;display:flex;gap:8px;">
+        <div style="padding:15px 20px;border-top:1px solid #F1F5F9;display:flex;gap:8px;flex-wrap:wrap;">
             {% if is_admin %}
-            <a href="{% url 'admin:erp_app_mentor_change' mentor.id %}" class="btn-outline" style="text-decoration:none;font-size:12px;padding:8px 16px;display:inline-block;">Edit</a>
+            <a href="{% url 'mentor_edit' mentor.id %}" class="btn-outline" style="text-decoration:none;font-size:12px;padding:8px 16px;display:inline-block;">Edit</a>
+            <form method="post" action="{% url 'mentor_delete' mentor.id %}" onsubmit="return confirm('Delete this mentor?');" style="display:inline;">{% csrf_token %}<button type="submit" class="btn-danger" style="padding:8px 16px;font-size:12px;">Delete</button></form>
             {% endif %}
         </div>
     </div>

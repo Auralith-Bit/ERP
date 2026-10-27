@@ -3,7 +3,7 @@ from django.db.models import Count
 from django.template.loader import render_to_string
 from django.core.mail import send_mail
 from django.utils.html import format_html, strip_tags
-from .models import Mentor, Department, Course, Student, CourseEnrollment, Employee, Project, ProjectPayment, Bill, Notification, IDCard, Certificate, Payment, Attendance
+from .models import Mentor, Department, Course, Student, CourseEnrollment, Employee, Project, ProjectPayment, Bill, Notification, IDCard, Certificate, Payment, Attendance, Expense
 
 
 class CourseEnrollmentInline(admin.TabularInline):
@@ -183,6 +183,14 @@ class ProjectPaymentAdmin(admin.ModelAdmin):
     list_display = ['project', 'amount', 'payment_date', 'reference', 'recorded_by']
     list_filter = ['payment_date']
     search_fields = ['project__name', 'project__client', 'reference']
+
+
+@admin.register(Expense)
+class ExpenseAdmin(admin.ModelAdmin):
+    list_display = ['month', 'category', 'description', 'vendor', 'amount', 'recorded_by']
+    list_filter = ['month', 'category']
+    search_fields = ['description', 'vendor', 'notes']
+    readonly_fields = ['created_at']
 
 
 @admin.register(Certificate)

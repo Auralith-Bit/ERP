@@ -14,16 +14,19 @@ def sidebar_stats(request):
         initials = request.user.username[:2].upper()
 
     roles = get_user_roles(request.user)
+    is_super_admin = SUPER_ADMIN in roles
+    display_name = 'Auralith Bit Admin' if is_super_admin else (full_name or request.user.username)
 
     return {
         'user_initials': initials,
+        'user_display_name': display_name,
         'sidebar_employee_count': Employee.objects.count(),
         'sidebar_department_count': Department.objects.count(),
         'sidebar_mentor_count': Mentor.objects.count(),
         'sidebar_student_count': Student.objects.count(),
         'sidebar_certificate_count': Certificate.objects.filter(status='issued').count(),
         'user_roles': roles,
-        'is_super_admin': SUPER_ADMIN in roles,
+        'is_super_admin': is_super_admin,
         'is_teaching_staff': TEACHING_STAFF in roles,
         'is_normal_staff': NORMAL_STAFF in roles,
         'is_student': STUDENT in roles,

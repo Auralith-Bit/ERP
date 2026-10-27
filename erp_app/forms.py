@@ -4,7 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 
-from .models import Certificate, CourseEnrollment, Payment, Project, ProjectPayment, Student
+from .models import Certificate, Course, CourseEnrollment, Department, Employee, Expense, Mentor, Payment, Project, ProjectPayment, Student
 
 User = get_user_model()
 
@@ -99,6 +99,40 @@ class StudentForm(ERPForm):
         }
 
 
+class DepartmentForm(ERPForm):
+    class Meta:
+        model = Department
+        fields = ['name', 'description']
+        widgets = {'description': forms.Textarea(attrs={'rows': 4})}
+
+
+class MentorForm(ERPForm):
+    class Meta:
+        model = Mentor
+        fields = ['name', 'email', 'specialization', 'bio', 'department', 'joined_date']
+        widgets = {
+            'bio': forms.Textarea(attrs={'rows': 4}),
+            'joined_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+
+class EmployeeForm(ERPForm):
+    class Meta:
+        model = Employee
+        fields = ['name', 'email', 'department', 'role', 'employee_type', 'joined_date']
+        widgets = {'joined_date': forms.DateInput(attrs={'type': 'date'})}
+
+
+class CourseForm(ERPForm):
+    class Meta:
+        model = Course
+        fields = ['name', 'mentor', 'category', 'duration_weeks', 'status', 'description', 'syllabus', 'completion_percent']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 4}),
+            'completion_percent': forms.NumberInput(attrs={'min': '0', 'max': '100'}),
+        }
+
+
 class ProjectForm(ERPForm):
     client = forms.CharField(max_length=200, widget=forms.TextInput(attrs={'placeholder': 'Client or company'}))
     description = forms.CharField(widget=forms.Textarea(attrs={'rows': 4, 'placeholder': 'Project scope, deliverables, and what the client needs'}))
@@ -152,6 +186,23 @@ class ProjectPaymentForm(ERPForm):
         amount = self.cleaned_data['amount']
         if amount <= 0:
             raise forms.ValidationError('Payment amount must be greater than zero.')
+        return amount
+
+
+class ExpenseForm(ERPForm):
+    class Meta:
+        model = Expense
+        fields = ['month', 'category', 'description', 'vendor', 'amount', 'notes']
+        widgets = {
+            'month': forms.DateInput(attrs={'type': 'date'}),
+            'amount': forms.NumberInput(attrs={'min': '0.01', 'step': '0.01'}),
+            'notes': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def clean_amount(self):
+        amount = self.cleaned_data['amount']
+        if amount <= 0:
+            raise forms.ValidationError('Expense amount must be greater than zero.')
         return amount
 
 

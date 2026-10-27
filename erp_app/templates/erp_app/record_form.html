@@ -1,0 +1,45 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<header class="top-nav" style="position:static;padding:0 0 20px;border:0;height:auto;background:transparent;">
+  <div class="header-info"><h1>{{ title }}</h1><p>{{ subtitle }}</p></div>
+  <a class="btn-outline" href="{{ back_url }}">Back</a>
+</header>
+<div class="data-card form-shell" style="max-width:860px;">
+  <form method="post" class="erp-form" {% if form.fields.syllabus %}enctype="multipart/form-data"{% endif %}>{% csrf_token %}
+    <div class="form-grid">
+      {% for field in form %}
+      <div class="field-block {% if field.field.widget.input_type == 'checkbox' %}checkbox-block{% endif %}">
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+        {% if field.errors %}<div class="field-error">{{ field.errors|join:', ' }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="form-actions">
+      <button class="btn-primary" type="submit">{{ submit_text }}</button>
+    </div>
+  </form>
+</div>
+<style>
+  .form-shell { padding: 28px; }
+  .erp-form { display: block; }
+  .form-grid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 18px 20px; }
+  .field-block { display: flex; flex-direction: column; gap: 6px; }
+  .field-block label { font-size: 13px; font-weight: 700; color: #1E293B; }
+  .field-block input, .field-block select, .field-block textarea {
+    width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: 10px; background: #fff; color: #0F172A; font: inherit;
+  }
+  .field-block small { color: #64748B; font-size: 11px; }
+  .field-error { color: #B91C1C; font-size: 12px; }
+  .checkbox-block { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; padding-top: 28px; }
+  .checkbox-block label { margin: 0; }
+  .checkbox-block input { width: auto; }
+  .form-actions { margin-top: 22px; }
+  @media (max-width: 640px) {
+    .form-shell { padding: 18px; }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}

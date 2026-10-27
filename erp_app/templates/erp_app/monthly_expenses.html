@@ -1,0 +1,113 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Monthly Expenses{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="header-row" style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;">
+    <div class="header-info">
+      <h1>Monthly Expenses</h1>
+      <p>Track Auralith Bit operational costs by month and manage the company accounts.</p>
+    </div>
+    <div class="stat-card" style="min-width:220px;">
+      <span>Total recorded</span>
+      <h3>Rs. {{ total_expenses|floatformat:2 }}</h3>
+    </div>
+  </div>
+
+  <div class="stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin:22px 0;">
+    <div class="stat-card primary">
+      <span>Income for {{ selected_month }}</span>
+      <h3>Rs. {{ month_income|floatformat:2 }}</h3>
+    </div>
+    <div class="stat-card">
+      <span>Expense for {{ selected_month }}</span>
+      <h3>Rs. {{ month_expense_total|floatformat:2 }}</h3>
+    </div>
+    <div class="stat-card {% if month_balance >= 0 %}success{% else %}danger{% endif %}">
+      <span>Net balance</span>
+      <h3>Rs. {{ month_balance|floatformat:2 }}</h3>
+    </div>
+  </div>
+
+  <div class="stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin:22px 0;">
+    {% for month in monthly_totals %}
+    <div class="stat-card">
+      <span>{{ month.label }}</span>
+      <h3>Rs. {{ month.total|floatformat:2 }}</h3>
+      <small>{{ month.count }} entries</small>
+    </div>
+    {% empty %}
+    <div class="stat-card">
+      <span>No record yet</span>
+      <h3>Rs. 0.00</h3>
+      <small>0 entries</small>
+    </div>
+    {% endfor %}
+  </div>
+
+  <section class="data-card" style="margin-bottom:24px;">
+    <h3>Add monthly expense</h3>
+    <form method="post" class="erp-form" novalidate>
+      {% csrf_token %}
+      <div class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">
+        {% for field in form %}
+        <div class="field-group" style="display:flex;flex-direction:column;gap:6px;">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}
+          <div class="field-error" style="color:#b91c1c;font-size:12px;">{{ field.errors|join:', ' }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn-primary" type="submit">Save expense</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="data-card">
+    <h3>Expense ledger</h3>
+    <div style="overflow:auto;">
+      <table class="erp-table" style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Category</th>
+            <th>Description</th>
+            <th>Vendor</th>
+            <th>Amount</th>
+            <th>Recorded by</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for expense in expenses %}
+          <tr>
+            <td>{{ expense.month|date:'F Y' }}</td>
+            <td>{{ expense.get_category_display }}</td>
+            <td>{{ expense.description }}</td>
+            <td>{{ expense.vendor|default:'—' }}</td>
+            <td>Rs. {{ expense.amount|floatformat:2 }}</td>
+            <td>{{ expense.recorded_by.get_full_name|default:expense.recorded_by.username|default:'System' }}</td>
+            <td>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <a href="{% url 'expense_edit' expense.id %}" class="btn-outline" style="padding:6px 12px;text-decoration:none;">Edit</a>
+                <form method="post" action="{% url 'delete_monthly_expense' expense.id %}" onsubmit="return confirm('Delete this expense record?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-danger" style="padding:6px 12px;">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" style="padding:24px;text-align:center;color:#64748b;">No expenses recorded yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
