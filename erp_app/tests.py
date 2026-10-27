@@ -189,6 +189,25 @@ class ErpSecurityRegressionTests(TestCase):
         self.assertTrue(self.student.photo)
         self.assertIn('student-portrait.png', self.student.photo.name)
 
+    def test_generated_student_id_card_with_photo_does_not_raise_bad_transparency_mask(self):
+        from PIL import Image
+        from io import BytesIO
+
+        image = Image.new('RGBA', (60, 60), (255, 0, 0, 255))
+        buffer = BytesIO()
+        image.save(buffer, format='PNG')
+        buffer.seek(0)
+        self.student.photo.save('student-portrait.png', ContentFile(buffer.getvalue()), save=True)
+
+        course = Course.objects.create(name='Photo Card Course')
+        card = self.client.post(
+            reverse('id_generation'),
+            {'action': 'generate', 'card_type': 'student', 'owner_id': self.student.pk, 'course_id': course.pk, 'photo': ContentFile(buffer.getvalue(), 'student-portrait.png')},
+            follow=True,
+        )
+        self.assertEqual(card.status_code, 200)
+        self.assertTrue(IDCard.objects.filter(student=self.student, card_type='student').exists())
+
     def test_superuser_display_name_uses_admin_label(self):
         self.admin.first_name = 'Anshu'
         self.admin.last_name = 'Thapa'

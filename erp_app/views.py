@@ -1143,7 +1143,7 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
             photo = None
     if photo:
         avatar_xy = (portrait_center[0]-115, portrait_center[1]-115)
-        image.paste(photo, avatar_xy, photo)
+        image.paste(photo, avatar_xy, photo.getchannel('A'))
     else:
         draw.text((portrait_center[0], portrait_center[1]), owner.name[:1].upper(), fill='#083A6B', font=choose_font(bold_fonts, 110), anchor='mm')
 
