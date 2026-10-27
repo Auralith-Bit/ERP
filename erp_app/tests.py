@@ -1,14 +1,14 @@
 import json
 import tempfile
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core import signing
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .forms import StaffAccountForm
-from .models import Course, Department, IDCard, Student
+from .forms import StaffAccountForm, StudentForm
+from .models import Course, Department, IDCard, Mentor, Student
 
 
 class ErpSecurityRegressionTests(TestCase):
@@ -94,6 +94,48 @@ class ErpSecurityRegressionTests(TestCase):
         account.refresh_from_db()
         self.assertTrue(account.check_password('Audit-Strong-4829!q'))
         self.assertTrue(account.groups.filter(name='normal_staff').exists())
+
+    def test_student_form_supports_manual_enrollment_date_and_mentor_assignment(self):
+        mentor = Mentor.objects.create(
+            name='Mentor One',
+            email='mentor-one@example.test',
+            specialization='Frontend Development',
+            department=Department.objects.create(name='Design & Development', description='Training'),
+        )
+
+        form = StudentForm(data={
+            'name': 'New Student',
+            'email': 'new-student@example.test',
+            'phone': '9800000000',
+            'mentor': mentor.pk,
+            'enrolled_date': '2026-10-01',
+            'is_intern': 'on',
+        })
+
+        self.assertTrue(form.is_valid(), form.errors)
+        student = form.save()
+        self.assertEqual(student.mentor, mentor)
+        self.assertEqual(student.enrolled_date.isoformat(), '2026-10-01')
+
+    def test_teaching_staff_can_manage_students_and_id_cards(self):
+        teaching_staff = User.objects.create_user('mentor_admin', 'mentor-admin@example.test', 'not-used')
+        teaching_staff.groups.add(Group.objects.get_or_create(name='teaching_staff')[0])
+        course = Course.objects.create(name='Audit Course')
+
+        self.client.force_login(teaching_staff)
+        self.assertEqual(self.client.get(reverse('students')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('student_detail', args=[self.student.pk])).status_code, 200)
+        self.assertEqual(self.client.get(reverse('id_generation')).status_code, 200)
+        self.assertEqual(self.client.post(reverse('verify_id_card'), data=json.dumps({'qr_data': signing.dumps({
+            'type': 'STUDENT_ID',
+            'id': f'STU-{self.student.pk:05d}-{course.pk:05d}',
+            'name': self.student.name,
+            'email': self.student.email,
+            'phone': self.student.phone or 'N/A',
+            'course': course.name,
+            'category': course.category,
+            'enrolled_date': self.student.enrolled_date.isoformat(),
+        }, salt='auralith-erp.id-card', compress=True)}), content_type='application/json').status_code, 200)
 
     def test_state_changing_get_logout_is_rejected(self):
         self.client.force_login(self.admin)

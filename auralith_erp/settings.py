@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import sys
 from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
@@ -19,7 +20,7 @@ def get_bool(value, default=False):
 # ---------------------------------------------------------------------------
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-local-development-only')
 
-DEBUG = get_bool(os.environ.get('DEBUG'), False)
+DEBUG = get_bool(os.environ.get('DEBUG'), 'test' in sys.argv)
 if not DEBUG and (SECRET_KEY.startswith('django-insecure-') or SECRET_KEY.startswith('replace-with-')):
     raise RuntimeError('Replace the development/example SECRET_KEY before deploying.')
 
@@ -143,11 +144,18 @@ USE_TZ = True
 # ---------------------------------------------------------------------------
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-STORAGES = {
-    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
-    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
-}
+if DEBUG:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+    STORAGES = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+else:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    STORAGES = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+    }
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

@@ -319,7 +319,7 @@ def dashboard(request):
 
 
 def _can_manage_company_records(user):
-    return has_role(user, SUPER_ADMIN, NORMAL_STAFF)
+    return has_role(user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF)
 
 
 @login_required
@@ -665,7 +665,7 @@ def integration(request):
 
 @login_required
 def id_generation(request):
-    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF):
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF):
         messages.error(request, 'You do not have permission to view ID cards.')
         return redirect('dashboard')
     if request.method == 'POST':
@@ -1345,7 +1345,7 @@ def get_departments(request):
 @require_http_methods(["POST"])
 def generate_student_id(request):
     """Generate student ID card with QR code containing all details"""
-    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF):
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF):
         return JsonResponse({'error': 'Permission denied.'}, status=403)
     try:
         data = json.loads(request.body)
@@ -1410,7 +1410,7 @@ def generate_student_id(request):
 @require_http_methods(["POST"])
 def generate_employee_id(request):
     """Generate employee ID card with QR code containing all details"""
-    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF):
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF):
         return JsonResponse({'error': 'Permission denied.'}, status=403)
     try:
         data = json.loads(request.body)
@@ -1473,7 +1473,7 @@ def generate_employee_id(request):
 @require_http_methods(["POST"])
 def verify_id_card(request):
     """Verify and display ID card details from scanned QR code data"""
-    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF):
+    if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF):
         return JsonResponse({'error': 'Permission denied.'}, status=403)
     try:
         data = json.loads(request.body)

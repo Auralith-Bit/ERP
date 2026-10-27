@@ -93,7 +93,10 @@ class ERPForm(forms.ModelForm):
 class StudentForm(ERPForm):
     class Meta:
         model = Student
-        fields = ['name', 'email', 'phone', 'is_intern']
+        fields = ['name', 'email', 'phone', 'mentor', 'enrolled_date', 'is_intern']
+        widgets = {
+            'enrolled_date': forms.DateInput(attrs={'type': 'date'}),
+        }
 
 
 class ProjectForm(ERPForm):
@@ -174,8 +177,7 @@ class StudentCertificateForm(ERPForm):
         model = Certificate
         fields = [
             'certificate_type', 'course', 'program_title', 'program_start_date',
-            'location', 'internship_details', 'authorized_signer_name',
-            'authorized_signer_title', 'authorized_signature_text',
+            'location', 'internship_details',
         ]
         widgets = {'internship_details': forms.Textarea(attrs={'rows': 3})}
 

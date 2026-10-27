@@ -2,7 +2,14 @@
 {% block title %}{{ student.name }}{% endblock %}
 {% block content %}
 <header class="top-nav" style="position:static;padding:0 0 20px;border:0;height:auto;background:transparent;">
-  <div class="header-info"><h1>{{ student.name }}</h1><p>{{ student.email }}{% if student.phone %} · {{ student.phone }}{% endif %}</p></div>
+  <div class="header-info">
+    <h1>{{ student.name }}</h1>
+    <p>{{ student.email }}{% if student.phone %} · {{ student.phone }}{% endif %}</p>
+    <div class="student-meta-row">
+      <span><strong>Enrolled:</strong> {% if student.enrolled_date %}{{ student.enrolled_date }}{% else %}Not set{% endif %}</span>
+      <span><strong>Mentor:</strong> {% if student.mentor %}{{ student.mentor.name }}{% else %}Unassigned{% endif %}</span>
+    </div>
+  </div>
   <div style="display:flex;gap:8px;"><a class="btn-outline" href="{% url 'students' %}">Students</a><a class="btn-primary" href="{% url 'student_edit' student.id %}">Edit Student</a></div>
 </header>
 <div class="stats-grid" style="margin-bottom:22px;">
@@ -53,5 +60,9 @@
   <h3>Add a course enrollment</h3><p style="color:#64748B;font-size:13px;">Set the full course price. Payments can then be added against the outstanding amount.</p>
   <form method="post" action="{% url 'student_finance_action' student.id %}">{% csrf_token %}<input type="hidden" name="action" value="add_enrollment">{{ enrollment_form.as_p }}<button class="btn-primary" type="submit">Add Course</button></form>
 </div>
-<style>.erp-form-control{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #CBD5E1;border-radius:7px;}td form p{margin:8px 0;}td form p label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;}</style>
+<style>
+  .student-meta-row { display:flex; flex-wrap:wrap; gap:14px; color:#475569; font-size:13px; margin-top:8px; }
+  .student-meta-row span { background:#F8FAFC; border:1px solid #E2E8F0; border-radius:999px; padding:6px 10px; }
+  .erp-form-control{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #CBD5E1;border-radius:7px;}td form p{margin:8px 0;}td form p label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;}
+</style>
 {% endblock %}

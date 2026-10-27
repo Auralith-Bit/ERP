@@ -80,7 +80,8 @@ class Student(models.Model):
     name = models.CharField(max_length=200)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True)
-    enrolled_date = models.DateField(auto_now_add=True)
+    mentor = models.ForeignKey('Mentor', on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
+    enrolled_date = models.DateField(default=datetime.date.today, null=True, blank=True)
     is_intern = models.BooleanField(default=False)
 
     class Meta:
@@ -191,6 +192,18 @@ class Certificate(models.Model):
     @property
     def dynamic_signature(self):
         return self.authorized_signature_text or self.authorized_signer_name or 'Authorized Signature'
+
+    @property
+    def mentor_signer_name(self):
+        if self.student and self.student.mentor:
+            return self.student.mentor.name
+        return 'Mentor'
+
+    @property
+    def mentor_signer_title(self):
+        if self.student and self.student.mentor and self.student.mentor.specialization:
+            return self.student.mentor.specialization
+        return 'Mentor'
 
     @property
     def display_program_title(self):

@@ -2,21 +2,68 @@
 {% block title %}{% if is_edit %}Edit Student{% else %}Add Student{% endif %}{% endblock %}
 {% block content %}
 <header class="top-nav" style="position:static;padding:0 0 20px;border:0;height:auto;background:transparent;">
-  <div class="header-info"><h1>{% if is_edit %}Edit Student{% else %}Add Student{% endif %}</h1><p>Student details and optional initial course enrollment.</p></div>
+  <div class="header-info"><h1>{% if is_edit %}Edit Student{% else %}Add Student{% endif %}</h1><p>Student details, mentor assignment, and optional initial enrollment.</p></div>
   <a class="btn-outline" href="{% if student %}{% url 'student_detail' student.id %}{% else %}{% url 'students' %}{% endif %}">Back</a>
 </header>
-<div class="data-card" style="max-width:800px;">
-  <form method="post">{% csrf_token %}
-    <h3>Student details</h3>
-    {{ form.as_p }}
+<div class="data-card form-shell" style="max-width:860px;">
+  <form method="post" class="erp-form">{% csrf_token %}
+    <div class="form-grid">
+      {% for field in form %}
+      <div class="field-block {% if field.field.widget.input_type == 'checkbox' %}checkbox-block{% endif %}">
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+        {% if field.errors %}<div class="field-error">{{ field.errors|join:', ' }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
     {% if not is_edit %}
-    <hr style="margin:22px 0;border:0;border-top:1px solid #E2E8F0;">
-    <h3>Initial course enrollment (optional)</h3>
-    <p style="color:#64748B;font-size:13px;">Set the course price now; record payments from the student profile after saving.</p>
-    {{ enrollment_form.as_p }}
+    <div class="section-divider"></div>
+    <div class="section-header">
+      <h3>Initial course enrollment</h3>
+      <p>Set the price now and manage payments from the student profile after saving.</p>
+    </div>
+    <div class="form-grid compact-grid">
+      {% for field in enrollment_form %}
+      <div class="field-block">
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+        {% if field.errors %}<div class="field-error">{{ field.errors|join:', ' }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
     {% endif %}
-    <button class="btn-primary" type="submit">{% if is_edit %}Save Changes{% else %}Add Student{% endif %}</button>
+
+    <div class="form-actions">
+      <button class="btn-primary" type="submit">{% if is_edit %}Save Changes{% else %}Add Student{% endif %}</button>
+    </div>
   </form>
 </div>
-<style>.erp-form-control{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;color:#0F172A;}form p{margin:12px 0;}form p label{display:block;font-weight:600;font-size:13px;margin-bottom:5px;}form .helptext{display:block;color:#64748B;font-size:12px;}</style>
+<style>
+  .form-shell { padding: 28px; }
+  .erp-form { display: block; }
+  .form-grid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 18px 20px; }
+  .compact-grid { margin-top: 12px; }
+  .field-block { display: flex; flex-direction: column; gap: 6px; }
+  .field-block label { font-size: 13px; font-weight: 700; color: #1E293B; }
+  .field-block input, .field-block select, .field-block textarea {
+    width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: 10px; background: #fff; color: #0F172A; font: inherit;
+  }
+  .field-block small { color: #64748B; font-size: 11px; }
+  .field-error { color: #B91C1C; font-size: 12px; }
+  .checkbox-block { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; padding-top: 28px; }
+  .checkbox-block label { margin: 0; }
+  .checkbox-block input { width: auto; }
+  .section-divider { border-top: 1px solid #E2E8F0; margin: 28px 0 18px; }
+  .section-header { margin-bottom: 8px; }
+  .section-header h3 { margin: 0 0 2px; }
+  .section-header p { margin: 0; color: #64748B; font-size: 13px; }
+  .form-actions { margin-top: 22px; }
+  @media (max-width: 640px) {
+    .form-shell { padding: 18px; }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
 {% endblock %}
