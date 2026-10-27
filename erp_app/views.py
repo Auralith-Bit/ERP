@@ -1049,21 +1049,18 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
                 raise Course.DoesNotExist('Select a valid course.') from error
         if not course and not student.is_intern:
             raise ValueError('Select a course for the student ID card.')
-        code = f'INT-{student.pk:05d}' if student.is_intern else f'STU-{student.pk:05d}-{course.pk:05d}'
+        code = f'INT-{student.pk:05d}' if student.is_intern else f'STU-{student.pk:05d}-{course.pk:05d}' if course else f'STU-{student.pk:05d}'
         owner = student
-        details = [student.email, student.phone or 'N/A', 'Intern · Auralith Bit' if student.is_intern else course.name]
-        if course:
-            details.append(f'Course: {course.name}')
-        qr_type = 'INTERN_ID' if student.is_intern else 'STUDENT_ID'
         qr_data = {
-            'type': qr_type, 'id': code, 'name': student.name,
+            'type': 'INTERN_ID' if student.is_intern else 'STUDENT_ID', 'id': code, 'name': student.name,
             'email': student.email, 'phone': student.phone or 'N/A',
             'role': 'Intern' if student.is_intern else 'Student',
             'course': course.name if course else '',
             'category': course.get_category_display() if course else '',
             'enrolled_date': student.enrolled_date.isoformat(),
         }
-        card_heading = 'INTERN IDENTITY CARD' if student.is_intern else 'STUDENT IDENTITY CARD'
+        role_label = 'FULL STACK DEVELOPER' if student.is_intern or not course else (course.name.upper() if course else 'FULL STACK DEVELOPER')
+        dept_label = (course.name.upper() if course else 'UI/UX DESIGN DEPARTMENT')
     elif card_type == 'employee':
         try:
             employee = Employee.objects.select_related('department').get(pk=int(owner_id))
@@ -1071,8 +1068,6 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
             raise Employee.DoesNotExist('Select a valid employee.') from error
         code = f'EMP-{employee.pk:05d}'
         owner = employee
-        details = [employee.email, employee.role or employee.get_employee_type_display(),
-                   employee.department.name if employee.department else 'Auralith Bit']
         qr_data = {
             'type': 'EMPLOYEE_ID', 'id': code, 'name': employee.name,
             'email': employee.email, 'role': employee.role or 'N/A',
@@ -1080,18 +1075,26 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
             'employee_type': employee.get_employee_type_display(),
             'joined_date': employee.joined_date.isoformat(),
         }
-        card_heading = 'EMPLOYEE IDENTITY CARD'
+        role_label = (employee.role or employee.get_employee_type_display()).upper()
+        dept_label = (employee.department.name if employee.department else 'UI/UX DESIGN DEPARTMENT').upper()
     else:
         raise ValueError('Choose a valid card type.')
 
     from PIL import ImageDraw, ImageFont
-    image = Image.new('RGB', (1100, 820), '#E5E4F7')
+    image = Image.new('RGB', (1100, 820), '#EFF1F6')
     draw = ImageDraw.Draw(image)
 
-    draw.rounded_rectangle((20, 20, 1080, 800), radius=34, fill='#2C1D78', outline='#D9B55D', width=6)
-    draw.rounded_rectangle((55, 55, 1045, 765), radius=28, fill='#F5F7FB', outline='#E6D29A', width=4)
-    draw.rounded_rectangle((55, 55, 1045, 190), radius=20, fill='#4C69D7')
-    draw.rounded_rectangle((65, 65, 1035, 180), radius=18, fill='#2F75D7')
+    banner = (30, 30, 1070, 220)
+    draw.rounded_rectangle(banner, radius=28, fill='#2F5BD7', outline='#D9B55D', width=6)
+    draw.rounded_rectangle((35, 35, 1065, 214), radius=24, fill='#2F6AD7')
+
+    brand_x = 550
+    brand_y = 108
+    logo_circle = (430, 70, 610, 250)
+    draw.ellipse(logo_circle, outline='#DDF3FF', width=4, fill=(245, 248, 255, 200))
+    draw.polygon([(520, 90), (560, 150), (480, 150)], fill='#FFFFFF')
+    draw.polygon([(520, 100), (550, 145), (490, 145)], fill='#3AC3D7')
+    draw.arc((492, 116, 548, 172), 180, 360, fill='#0B1C4B', width=3)
 
     font_dir = Path(ImageFont.__file__).parent / 'fonts'
     regular_fonts = [Path('C:/Windows/Fonts/arial.ttf'), font_dir / 'DejaVuSans.ttf',
@@ -1113,29 +1116,23 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
         except UnicodeEncodeError:
             draw.text(position, text.encode('latin-1', 'replace').decode('latin-1'), fill=fill, font=ImageFont.load_default(), anchor=anchor)
 
-    logo_circle = (430, 86, 610, 266)
-    draw.ellipse(logo_circle, outline='#EBF3FF', width=4, fill=(241, 246, 255))
-    draw.polygon([(520, 100), (560, 165), (480, 165)], fill='#2A5FBF')
-    draw.polygon([(520, 110), (550, 162), (490, 162)], fill='#3AC3D7')
-    draw.arc((490, 132, 550, 192), 0, 180, fill='#0B1C4B', width=3)
-    draw_label((540, 130), 'AURALITH BIT', '#FFFFFF', choose_font(bold_fonts, 42), anchor='mm')
-    draw_label((540, 165), 'DESIGN . DEVELOP . DELIVER', '#D7EBFF', choose_font(regular_fonts, 16), anchor='mm')
+    draw_label((brand_x, 92), 'AURALITH BIT', '#FFFFFF', choose_font(bold_fonts, 46), anchor='mm')
+    draw_label((brand_x, 130), 'DESIGN . DEVELOP . DELIVER', '#EAF4FF', choose_font(regular_fonts, 16), anchor='mm')
 
-    id_chip = (760, 260, 960, 330)
-    draw.rounded_rectangle(id_chip, radius=16, fill='#EEF3FF', outline='#D7E3FA', width=2)
-    draw_label((860, 295), f'ID : {code}', '#1A4B8D', choose_font(regular_fonts, 22), anchor='mm')
+    body = (55, 210, 1045, 760)
+    draw.rounded_rectangle(body, radius=20, fill='#F8F9FB', outline='#E3D7AE', width=3)
 
-    profile_x = 520
-    profile_y = 350
-    portrait_box = (profile_x - 120, profile_y - 120, profile_x + 120, profile_y + 120)
-    draw.ellipse(portrait_box, outline='#27C5C5', width=8, fill='#D4F5F0')
+    portrait_center = (370, 360)
+    portrait_box = (portrait_center[0]-130, portrait_center[1]-130, portrait_center[0]+130, portrait_center[1]+130)
+    draw.ellipse(portrait_box, outline='#31D8D0', width=7, fill='#CFF9F6')
+
     photo = None
     owner_photo = getattr(owner, 'photo', None)
     if owner_photo and owner_photo.name:
         try:
             with Image.open(owner_photo) as source:
                 source = source.convert('RGBA')
-                source = source.resize((210, 210))
+                source = source.resize((230, 230))
                 mask = Image.new('L', source.size, 0)
                 mask_draw = ImageDraw.Draw(mask)
                 mask_draw.ellipse((0, 0, source.width, source.height), fill=255)
@@ -1144,43 +1141,47 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
         except Exception:
             photo = None
     if photo:
-        image.paste(photo, (profile_x - 105, profile_y - 105), photo)
+        avatar_xy = (portrait_center[0]-115, portrait_center[1]-115)
+        image.paste(photo, avatar_xy, photo)
     else:
-        draw.text((profile_x, profile_y), owner.name[:1].upper(), fill='#0E3B6B', font=choose_font(bold_fonts, 92), anchor='mm')
+        draw.text((portrait_center[0], portrait_center[1]), owner.name[:1].upper(), fill='#083A6B', font=choose_font(bold_fonts, 110), anchor='mm')
 
-    draw_label((520, 505), owner.name[:32].upper(), '#1A4B8D', choose_font(bold_fonts, 56), anchor='mm')
-    draw_label((520, 560), 'FULL STACK DEVELOPER' if card_type == 'student' else 'AURALITH BIT STAFF', '#4F5D75', choose_font(regular_fonts, 24), anchor='mm')
+    id_box = (690, 240, 930, 325)
+    draw.rounded_rectangle(id_box, radius=16, fill='#EEF3FF', outline='#D4E3FE', width=2)
+    draw_label((810, 282), f'ID : {code}', '#183B69', choose_font(regular_fonts, 24), anchor='mm')
 
-    # details panel
-    info_y = 610
-    info_box_left = (110, info_y, 470, info_y + 90)
-    info_box_right = (560, info_y, 980, info_y + 90)
-    draw.rounded_rectangle(info_box_left, radius=14, fill='#F0F4FF', outline='#D9DFEF', width=1)
-    draw.rounded_rectangle(info_box_right, radius=14, fill='#F0F4FF', outline='#D9DFEF', width=1)
-    draw_label((150, info_y + 25), 'DEPARTMENT', '#64748B', choose_font(regular_fonts, 18), anchor='la')
-    if card_type == 'student':
-        dept_value = (course.name if course else 'Software Development')
+    draw_label((530, 500), owner.name.upper()[:32], '#1A4B8D', choose_font(bold_fonts, 54), anchor='mm')
+    draw_label((530, 560), role_label, '#233B62', choose_font(regular_fonts, 22), anchor='mm')
+
+    left_box = (110, 610, 470, 700)
+    right_box = (560, 610, 980, 700)
+    draw.rounded_rectangle(left_box, radius=12, fill='#EEF3FF', outline='#D6E6FF', width=2)
+    draw.rounded_rectangle(right_box, radius=12, fill='#EEF3FF', outline='#D6E6FF', width=2)
+    draw_label((150, 644), 'DEPARTMENT', '#64748B', choose_font(regular_fonts, 18), anchor='la')
+    draw_label((150, 670), dept_label[:28], '#183B69', choose_font(bold_fonts, 18), anchor='la')
+    draw_label((600, 644), 'CONTACT', '#64748B', choose_font(regular_fonts, 18), anchor='la')
+
+    contact_value = (student.phone if card_type == 'student' else getattr(owner, 'phone', '')) or 'N/A'
+    if str(contact_value).isdigit():
+        contact_text = f'+{contact_value}'
     else:
-        dept_value = (employee.department.name if employee.department else 'Auralith Bit')
-    draw_label((150, info_y + 58), dept_value[:26], '#183B69', choose_font(bold_fonts, 20), anchor='la')
+        contact_text = contact_value if contact_value and str(contact_value).startswith('+') else (contact_value or 'N/A')
+    draw_label((600, 670), contact_text, '#183B69', choose_font(bold_fonts, 20), anchor='la')
 
-    draw_label((600, info_y + 25), 'CONTACT', '#64748B', choose_font(regular_fonts, 18), anchor='la')
-    contact_value = student.phone if card_type == 'student' else employee.phone if hasattr(employee, 'phone') else 'N/A'
-    draw_label((600, info_y + 58), f'+{contact_value}' if contact_value and str(contact_value).startswith('+') else (f'+{contact_value}' if contact_value and contact_value.isdigit() else contact_value or 'N/A'), '#183B69', choose_font(bold_fonts, 20), anchor='la')
+    qr_box = (760, 610, 930, 780)
+    draw.rounded_rectangle(qr_box, radius=18, fill='#F4FCFF', outline='#2ACCD4', width=3)
+    draw.ellipse((800, 655, 890, 745), fill='#27D6D0')
+    draw_label((845, 740), 'VERIFIED', '#1D4ED8', choose_font(regular_fonts, 18), anchor='mm')
 
     qr = qrcode.QRCode(box_size=7, border=2)
     signed_payload = signing.dumps(qr_data, salt='auralith-erp.id-card', compress=True)
     qr.add_data(_build_verification_url(signed_payload))
     qr.make(fit=True)
-    qr_image = qr.make_image(fill_color='#1A4B8D', back_color='white').convert('RGB').resize((170, 170))
-    image.paste(qr_image, (760, 610))
+    qr_image = qr.make_image(fill_color='#1A4B8D', back_color='white').convert('RGB').resize((180, 180))
+    image.paste(qr_image, (760, 610), qr_image)
 
-    draw.rounded_rectangle((720, 610, 950, 780), radius=18, fill='#FFFFFF', outline='#11C6C2', width=4)
-    draw.ellipse((820, 660, 880, 720), fill='#19C8B6')
-    draw_label((860, 735), 'VERIFIED', '#1D4ED8', choose_font(regular_fonts, 18), anchor='mm')
-
-    draw.line((70, 735, 1030, 735), fill='#DDB857', width=3)
-    draw_label((540, 758), 'AURALITH BIT | BHAIRAHAWA, SNP-08 | 9766715783', '#1D4ED8', choose_font(bold_fonts, 24), anchor='mm')
+    draw.rounded_rectangle((70, 760, 1030, 805), radius=18, fill='#2F5BD7')
+    draw_label((550, 784), 'AURALITH BIT | BHAIRAHAWA, SNP-08 | 9766715783', '#F3F7FF', choose_font(bold_fonts, 22), anchor='mm')
 
     output = io.BytesIO()
     image.save(output, format='PNG', optimize=True)

@@ -26,7 +26,7 @@
     {% if is_admin %}
     <div class="data-card" style="padding:25px;">
         <h3 style="margin-bottom:15px;">Generate Student ID Card</h3>
-        <form method="post" style="margin-bottom:24px;">
+        <form method="post" enctype="multipart/form-data" style="margin-bottom:24px;">
             {% csrf_token %}
             <input type="hidden" name="action" value="generate">
             <input type="hidden" name="card_type" value="student">
@@ -74,7 +74,7 @@
 
     <div class="data-card" style="padding:25px;">
         <h3 style="margin-bottom:15px;">Generate Employee ID Card</h3>
-        <form method="post" style="margin-bottom:24px;">
+        <form method="post" enctype="multipart/form-data" style="margin-bottom:24px;">
             {% csrf_token %}
             <input type="hidden" name="action" value="generate">
             <input type="hidden" name="card_type" value="employee">
