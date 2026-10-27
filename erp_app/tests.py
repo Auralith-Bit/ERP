@@ -183,6 +183,28 @@ class ErpSecurityRegressionTests(TestCase):
 
         self.assertEqual(cert.program_start_date, '2026/09/18')
 
+    def test_certificate_preview_has_no_preprinted_signature_text(self):
+        course = Course.objects.create(name='Audit Course')
+        cert = Certificate.objects.create(
+            student=self.student,
+            course=course,
+            certificate_type='course',
+            program_title='Audit Course',
+            program_start_date='2026/09/18',
+            location='Auralith Bit',
+            authorized_signer_name='Authorized Signatory',
+            authorized_signer_title='Company Representative',
+            authorized_signature_text='Digital Signature Text',
+        )
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('preview_certificate', args=[cert.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Digital Signature Text')
+        self.assertNotContains(response, 'Authorized Signatory')
+        self.assertNotContains(response, 'Company Representative')
+        self.assertContains(response, 'Mentor')
+        self.assertContains(response, 'Aakriti Bista')
+
     def test_student_photo_field_supports_id_card_portrait_upload(self):
         image_bytes = b'fake-image-data'
         self.student.photo.save('student-portrait.png', ContentFile(image_bytes), save=True)

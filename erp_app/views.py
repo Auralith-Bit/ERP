@@ -2306,8 +2306,6 @@ def _write_simple_certificate_pdf(certificate):
 
     commands.append(f'{light[0]:.3f} {light[1]:.3f} {light[2]:.3f} RG 1 w 172 122 m 620 122 l S')
     for x, name, label in ((250, certificate.authorized_signer_name or 'Authorized Signatory', certificate.authorized_signer_title or 'Company Representative'), (542, certificate.ceo_founder_name, certificate.ceo_founder_title)):
-        signature_text = certificate.dynamic_signature if x == 250 else certificate.ceo_founder_signature
-        _pdf_text(commands, signature_text, x, 112, 13, 'F2', blue, 'center')
         commands.append('0.741 0.773 0.820 RG 1 w %.2f 95 m %.2f 95 l S' % (x - 90, x + 90))
         _pdf_text(commands, name, x, 76, 13, 'F2', slate, 'center')
         _pdf_text(commands, label, x, 60, 11, 'F1', (0.58, 0.64, 0.72), 'center')
