@@ -841,6 +841,8 @@ def mentors(request):
 class _MentorRow:
     """Wraps a Mentor model instance to look like an Employee for the table template."""
     def __init__(self, mentor):
+        self.id = mentor.pk
+        self.pk = mentor.pk
         self.name = mentor.name
         self.email = mentor.email
         self.department = mentor.department
@@ -855,22 +857,21 @@ def employees(request):
     if not has_role(request.user, SUPER_ADMIN, NORMAL_STAFF, TEACHING_STAFF):
         messages.error(request, 'You do not have permission to view employee records.')
         return redirect('dashboard')
-    employee_type = request.GET.get('type', '')
+    employee_type = (request.GET.get('type') or '').strip().lower()
     emp_list = list(Employee.objects.select_related('department').all())
     mentor_rows = [_MentorRow(m) for m in Mentor.objects.annotate(course_count=Count('course')).all()]
 
-    if employee_type:
-        if employee_type == 'mentor':
-            combined = mentor_rows
-        else:
-            combined = [e for e in emp_list if e.employee_type == employee_type]
+    if employee_type in ('', 'all'):
+        combined = sorted(emp_list + mentor_rows, key=lambda e: str(getattr(e, 'name', '')).lower())
+    elif employee_type == 'mentor':
+        combined = mentor_rows
     else:
-        combined = sorted(emp_list + mentor_rows, key=lambda e: e.name.lower())
+        combined = [e for e in emp_list if getattr(e, 'employee_type', '') == employee_type]
 
     context = {
         'employees': combined,
         'types': Employee.EMPLOYEE_TYPES,
-        'current_type': employee_type,
+        'current_type': employee_type if employee_type not in ('', 'all') else '',
         'is_admin': has_role(request.user, SUPER_ADMIN, NORMAL_STAFF),
     }
     return render(request, 'erp_app/employees.html', context)
@@ -1091,7 +1092,7 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
     brand_x = 550
     brand_y = 108
     logo_circle = (430, 70, 610, 250)
-    draw.ellipse(logo_circle, outline='#DDF3FF', width=4, fill=(245, 248, 255, 200))
+    draw.ellipse(logo_circle, outline='#DDF3FF', width=4, fill='#EDF6FF')
     draw.polygon([(520, 90), (560, 150), (480, 150)], fill='#FFFFFF')
     draw.polygon([(520, 100), (550, 145), (490, 145)], fill='#3AC3D7')
     draw.arc((492, 116, 548, 172), 180, 360, fill='#0B1C4B', width=3)

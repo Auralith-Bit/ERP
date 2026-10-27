@@ -139,6 +139,23 @@ class ErpSecurityRegressionTests(TestCase):
             'enrolled_date': self.student.enrolled_date.isoformat(),
         }, salt='auralith-erp.id-card', compress=True)}), content_type='application/json').status_code, 200)
 
+    def test_employee_page_renders_mentor_rows_without_500(self):
+        Mentor.objects.create(
+            name='Mentor Row',
+            email='mentor-row@example.test',
+            specialization='UI/UX Design',
+            department=Department.objects.create(name='Design Team', description='Design training'),
+            joined_date='2026-01-15',
+        )
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('employees'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Mentor Row')
+
+        all_response = self.client.get(f"{reverse('employees')}?type=all")
+        self.assertEqual(all_response.status_code, 200)
+        self.assertContains(all_response, 'Mentor Row')
+
     def test_state_changing_get_logout_is_rejected(self):
         self.client.force_login(self.admin)
         self.assertEqual(self.client.get(reverse('logout')).status_code, 405)
