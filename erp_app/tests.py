@@ -166,6 +166,12 @@ class ErpSecurityRegressionTests(TestCase):
 
         self.assertEqual(cert.program_start_date, '2026/09/18')
 
+    def test_student_photo_field_supports_id_card_portrait_upload(self):
+        image_bytes = b'fake-image-data'
+        self.student.photo.save('student-portrait.png', ContentFile(image_bytes), save=True)
+        self.assertTrue(self.student.photo)
+        self.assertIn('student-portrait.png', self.student.photo.name)
+
     def test_superuser_display_name_uses_admin_label(self):
         self.admin.first_name = 'Anshu'
         self.admin.last_name = 'Thapa'

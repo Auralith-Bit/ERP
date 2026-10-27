@@ -93,7 +93,7 @@ class ERPForm(forms.ModelForm):
 class StudentForm(ERPForm):
     class Meta:
         model = Student
-        fields = ['name', 'email', 'phone', 'mentor', 'enrolled_date', 'is_intern']
+        fields = ['name', 'email', 'phone', 'photo', 'mentor', 'enrolled_date', 'is_intern']
         widgets = {
             'enrolled_date': forms.DateInput(attrs={'type': 'date'}),
         }
@@ -119,7 +119,7 @@ class MentorForm(ERPForm):
 class EmployeeForm(ERPForm):
     class Meta:
         model = Employee
-        fields = ['name', 'email', 'department', 'role', 'employee_type', 'joined_date']
+        fields = ['name', 'email', 'department', 'role', 'photo', 'employee_type', 'joined_date']
         widgets = {'joined_date': forms.DateInput(attrs={'type': 'date'})}
 
 

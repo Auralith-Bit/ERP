@@ -80,6 +80,7 @@ class Student(models.Model):
     name = models.CharField(max_length=200)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True)
+    photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
     mentor = models.ForeignKey('Mentor', on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
     enrolled_date = models.DateField(default=datetime.date.today, null=True, blank=True)
     is_intern = models.BooleanField(default=False)
@@ -331,6 +332,7 @@ class Employee(models.Model):
     email = models.EmailField(unique=True)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     role = models.CharField(max_length=200, blank=True)
+    photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
     employee_type = models.CharField(max_length=20, choices=EMPLOYEE_TYPES, default='staff')
     joined_date = models.DateField(default=datetime.date.today)
 

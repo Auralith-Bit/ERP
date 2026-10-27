@@ -901,9 +901,24 @@ def id_generation(request):
         return redirect('dashboard')
     if request.method == 'POST':
         card_type = request.POST.get('card_type')
+        uploaded_photo = request.FILES.get('photo')
         if request.POST.get('action') == 'generate':
+            owner_id = request.POST.get('owner_id')
+            if uploaded_photo:
+                try:
+                    if card_type == 'student':
+                        student = Student.objects.get(pk=int(owner_id))
+                        student.photo = uploaded_photo
+                        student.save(update_fields=['photo'])
+                    elif card_type == 'employee':
+                        employee = Employee.objects.get(pk=int(owner_id))
+                        employee.photo = uploaded_photo
+                        employee.save(update_fields=['photo'])
+                except (Student.DoesNotExist, Employee.DoesNotExist, TypeError, ValueError):
+                    messages.error(request, 'Choose a valid user before uploading a profile photo.')
+                    return redirect('id_generation')
             try:
-                card = _generate_saved_id_card(card_type, request.POST.get('owner_id'), request.POST.get('course_id'))
+                card = _generate_saved_id_card(card_type, owner_id, request.POST.get('course_id'))
                 Notification.objects.create(
                     title=f'{card.get_card_type_display()} ID generated',
                     message=f'{card.get_card_type_display()} ID card for {card.owner_name} has been generated.',
@@ -930,6 +945,17 @@ def id_generation(request):
             except Exception:
                 messages.error(request, 'The selected file is not a readable image.')
                 return redirect('id_generation')
+            if uploaded_photo := request.FILES.get('photo'):
+                if card_type == 'student':
+                    student = Student.objects.filter(id=owner_id).first()
+                    if student:
+                        student.photo = uploaded_photo
+                        student.save(update_fields=['photo'])
+                elif card_type == 'employee':
+                    employee = Employee.objects.filter(id=owner_id).first()
+                    if employee:
+                        employee.photo = uploaded_photo
+                        employee.save(update_fields=['photo'])
             if card_type == 'student':
                 student = Student.objects.filter(id=owner_id).first()
                 if student:
@@ -1101,8 +1127,26 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
 
     profile_x = 520
     profile_y = 350
-    draw.ellipse((profile_x - 120, profile_y - 120, profile_x + 120, profile_y + 120), outline='#27C5C5', width=8, fill='#D4F5F0')
-    draw.text((profile_x, profile_y), owner.name[:1].upper(), fill='#0E3B6B', font=choose_font(bold_fonts, 92), anchor='mm')
+    portrait_box = (profile_x - 120, profile_y - 120, profile_x + 120, profile_y + 120)
+    draw.ellipse(portrait_box, outline='#27C5C5', width=8, fill='#D4F5F0')
+    photo = None
+    owner_photo = getattr(owner, 'photo', None)
+    if owner_photo and owner_photo.name:
+        try:
+            with Image.open(owner_photo) as source:
+                source = source.convert('RGBA')
+                source = source.resize((210, 210))
+                mask = Image.new('L', source.size, 0)
+                mask_draw = ImageDraw.Draw(mask)
+                mask_draw.ellipse((0, 0, source.width, source.height), fill=255)
+                photo = Image.new('RGBA', source.size, (0, 0, 0, 0))
+                photo.paste(source, (0, 0), mask)
+        except Exception:
+            photo = None
+    if photo:
+        image.paste(photo, (profile_x - 105, profile_y - 105), photo)
+    else:
+        draw.text((profile_x, profile_y), owner.name[:1].upper(), fill='#0E3B6B', font=choose_font(bold_fonts, 92), anchor='mm')
 
     draw_label((520, 505), owner.name[:32].upper(), '#1A4B8D', choose_font(bold_fonts, 56), anchor='mm')
     draw_label((520, 560), 'FULL STACK DEVELOPER' if card_type == 'student' else 'AURALITH BIT STAFF', '#4F5D75', choose_font(regular_fonts, 24), anchor='mm')
