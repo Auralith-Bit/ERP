@@ -52,6 +52,20 @@ from .forms import (
     StudentForm,
 )
 logger = logging.getLogger(__name__)
+
+
+def paste_rgba(base, overlay, xy):
+    """Paste an RGBA overlay onto a base image using alpha_composite safely."""
+    if base.mode != 'RGBA':
+        base = base.convert('RGBA')
+    if overlay.mode != 'RGBA':
+        overlay = overlay.convert('RGBA')
+    x, y = xy
+    temp = Image.new('RGBA', base.size, (0, 0, 0, 0))
+    temp.paste(overlay, (x, y), overlay)
+    base.alpha_composite(temp)
+    return base
+
 from .roles import (get_user_roles, has_role,
     SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF, STUDENT, INTERN,
     role_required, teaching_staff_required, normal_staff_required, staff_required)
@@ -1143,7 +1157,13 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
             photo = None
     if photo:
         avatar_xy = (portrait_center[0]-115, portrait_center[1]-115)
-        image.paste(photo, avatar_xy, photo.getchannel('A'))
+        try:
+            image = paste_rgba(image, photo, avatar_xy)
+        except Exception:
+            try:
+                image.paste(photo, avatar_xy, photo)
+            except Exception:
+                pass
     else:
         draw.text((portrait_center[0], portrait_center[1]), owner.name[:1].upper(), fill='#083A6B', font=choose_font(bold_fonts, 110), anchor='mm')
 
@@ -1179,7 +1199,13 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
     qr.add_data(_build_verification_url(signed_payload))
     qr.make(fit=True)
     qr_image = qr.make_image(fill_color='#1A4B8D', back_color='white').convert('RGB').resize((180, 180))
-    image.paste(qr_image, (760, 610), qr_image)
+    try:
+        image = paste_rgba(image, qr_image, (760, 610))
+    except Exception:
+        try:
+            image.paste(qr_image, (760, 610))
+        except Exception:
+            pass
 
     draw.rounded_rectangle((70, 760, 1030, 805), radius=18, fill='#2F5BD7')
     draw_label((550, 784), 'AURALITH BIT | BHAIRAHAWA, SNP-08 | 9766715783', '#F3F7FF', choose_font(bold_fonts, 22), anchor='mm')
