@@ -69,6 +69,7 @@ urlpatterns = [
     path('api/generate-student-id/', views.generate_student_id, name='generate_student_id'),
     path('api/generate-employee-id/', views.generate_employee_id, name='generate_employee_id'),
     path('verify-id-card/', views.verify_id_card_page, name='verify_id_card_page'),
+    path('verify/<str:code>/', views.verify_id_card_page, name='verify_id_card_secure'),
     path('api/verify-id-card/', views.verify_id_card, name='verify_id_card'),
     path('api/delete-id-card/<int:card_id>/', views.delete_id_card, name='delete_id_card'),
     # Certificate routes

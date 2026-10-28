@@ -1,3 +1,5 @@
+import secrets
+from django.core.cache import cache
 import json
 import io
 import logging
@@ -1995,34 +1997,148 @@ def generate_employee_id(request):
 
 
 @require_http_methods(["GET"])
-def verify_id_card_page(request):
+def verify_id_card_page(request, code=None):
+    # Support both /verify/<code>/?t=<token> and legacy ?data=
+    token = request.GET.get('t') or request.GET.get('token')
+    card_code = code or request.GET.get('code') or request.GET.get('id')
     payload = request.GET.get('data', '')
-    context = {'verified': False, 'message': 'Invalid QR verification link.'}
 
-    if payload:
+    # Rate limiting per IP
+    try:
+        ip = request.META.get('REMOTE_ADDR', 'unknown')
+        key = f'verify:{ip}'
+        cnt = cache.get(key, 0)
+        if cnt >= 30:
+            response = render(request, 'erp_app/verify_id_card.html', {'verified': False, 'message': 'Not a verified member'})
+            response['Cache-Control'] = 'no-store'
+            response['X-Robots-Tag'] = 'noindex'
+            return response
+        cache.set(key, cnt + 1, 60)
+    except Exception:
+        pass
+
+    context = {'verified': False, 'message': 'Not a verified member'}
+
+    # New secure flow
+    if card_code and token:
         try:
-            qr_data = signing.loads(payload, salt='auralith-erp.id-card')
-        except Exception:
-            try:
-                qr_data = json.loads(payload)
-            except Exception:
-                qr_data = None
-        if isinstance(qr_data, dict):
+            from .models import IDCard, VerificationScan
+            card = IDCard.objects.filter(code=card_code).select_related('student', 'employee').first()
+            if not card or card.status != 'active' or not card.verify_token:
+                try:
+                    VerificationScan.objects.create(card=card, result='failed') if card else None
+                except Exception:
+                    pass
+                response = render(request, 'erp_app/verify_id_card.html', context)
+                response['Cache-Control'] = 'no-store'
+                response['X-Robots-Tag'] = 'noindex'
+                return response
+            if not secrets.compare_digest(str(card.verify_token), str(token)):
+                try:
+                    VerificationScan.objects.create(card=card, result='failed')
+                except Exception:
+                    pass
+                response = render(request, 'erp_app/verify_id_card.html', context)
+                response['Cache-Control'] = 'no-store'
+                response['X-Robots-Tag'] = 'noindex'
+                return response
+            # Check owner still active
+            owner_ok = True
+            if card.card_type == 'student' and card.student:
+                pass  # assume active if exists
+            elif card.card_type == 'employee' and card.employee:
+                if getattr(card.employee, 'status', 'active') in ['inactive', 'resigned']:
+                    owner_ok = False
+            else:
+                owner_ok = False
+            if not owner_ok or (card.expires_at and card.expires_at < timezone.now()):
+                try:
+                    VerificationScan.objects.create(card=card, result='failed')
+                except Exception:
+                    pass
+                response = render(request, 'erp_app/verify_id_card.html', context)
+                response['Cache-Control'] = 'no-store'
+                response['X-Robots-Tag'] = 'noindex'
+                return response
+            owner_name = card.owner_name
+            owner = card.student if card.card_type == 'student' else card.employee
             context = {
                 'verified': True,
                 'organization': 'Auralith Bit',
-                'card_type': qr_data.get('type', 'Unknown'),
-                'card_id': qr_data.get('id', 'Unknown'),
-                'name': qr_data.get('name', 'Unknown'),
-                'email': qr_data.get('email', 'N/A'),
-                'phone': qr_data.get('phone', qr_data.get('role', 'N/A')),
-                'department': qr_data.get('department', qr_data.get('course', 'N/A')),
-                'role': qr_data.get('role', qr_data.get('employee_type', 'Verified Member')),
-                'enrolled_date': qr_data.get('enrolled_date', qr_data.get('joined_date', 'N/A')),
-                'category': qr_data.get('category', ''),
-                'message': 'Verified member of Auralith Bit',
+                'name': owner_name,
+                'code': card.code or card_code,
+                'role': getattr(owner, 'role', None) or getattr(getattr(owner, 'course', None), 'name', None) or ('Student' if card.card_type == 'student' else 'Member'),
+                'department': getattr(getattr(owner, 'department', None), 'name', None) or (getattr(owner, 'course', None).name if card.card_type == 'student' and hasattr(owner, 'course') else None),
+                'status': 'active',
+                'last_verified': timezone.now().strftime('%Y-%m-%d %H:%M:%S UTC'),
             }
-    return render(request, 'erp_app/verify_id_card.html', context)
+            if card.show_contact_publicly:
+                context['email'] = getattr(owner, 'email', None)
+                context['phone'] = getattr(owner, 'phone', None)
+            try:
+                VerificationScan.objects.create(card=card, result='success')
+            except Exception:
+                pass
+            response = render(request, 'erp_app/verify_id_card.html', context)
+            response['Cache-Control'] = 'no-store'
+            response['X-Robots-Tag'] = 'noindex'
+            return response
+        except Exception:
+            response = render(request, 'erp_app/verify_id_card.html', context)
+            response['Cache-Control'] = 'no-store'
+            response['X-Robots-Tag'] = 'noindex'
+            return response
+
+    # Legacy path - only accept validly signed payloads, then look up in DB
+    if payload:
+        try:
+            qr_data = signing.loads(payload, salt='auralith-erp.id-card')
+            if isinstance(qr_data, dict):
+                # Look up in DB and display DB data with banner
+                try:
+                    from .models import IDCard
+                    card_type = qr_data.get('type')
+                    card_id = qr_data.get('id', '')
+                    # try to find card
+                    card = None
+                    if card_id:
+                        card = IDCard.objects.filter(code=card_id).select_related('student', 'employee').first()
+                    if card and card.status == 'active':
+                        owner = card.student if card.card_type == 'student' else card.employee
+                        owner_name = card.owner_name
+                        context = {
+                            'verified': True,
+                            'organization': 'Auralith Bit',
+                            'name': owner_name,
+                            'code': card.code or card_id,
+                            'role': getattr(owner, 'role', None) or 'Member',
+                            'department': getattr(getattr(owner, 'department', None), 'name', None) or '',
+                            'status': 'active',
+                            'old_card': True,
+                            'banner': 'Old card - please reissue',
+                            'last_verified': timezone.now().strftime('%Y-%m-%d %H:%M:%S UTC'),
+                        }
+                        if card.show_contact_publicly:
+                            context['email'] = getattr(owner, 'email', None)
+                            context['phone'] = getattr(owner, 'phone', None)
+                        try:
+                            from .models import VerificationScan
+                            VerificationScan.objects.create(card=card, result='success_legacy')
+                        except Exception:
+                            pass
+                        response = render(request, 'erp_app/verify_id_card.html', context)
+                        response['Cache-Control'] = 'no-store'
+                        response['X-Robots-Tag'] = 'noindex'
+                        return response
+                except Exception:
+                    pass
+        except Exception:
+            pass  # Do NOT fall back to unsigned json.loads
+
+    response = render(request, 'erp_app/verify_id_card.html', context)
+    response['Cache-Control'] = 'no-store'
+    response['X-Robots-Tag'] = 'noindex'
+    return response
 
 
 @require_http_methods(['POST'])
@@ -2041,9 +2157,14 @@ def verify_id_card(request):
         
         try:
             qr_data = signing.loads(qr_data_str, salt='auralith-erp.id-card')
-        except signing.BadSignature:
-            # Accept older cards only after their ID and holder data match the database.
-            qr_data = json.loads(qr_data_str)
+        except Exception:
+            try:
+                qr_data = json.loads(qr_data_str)
+                # Only accept if it's a signed-style legacy? But spec says "For old cards that carry ?data=, accept only validly signed payloads" - and for API staff verify
+                # Remove unsigned json fallback per requirements for staff API too
+                return JsonResponse({'error': 'Invalid or unsupported QR code'}, status=400)
+            except Exception:
+                return JsonResponse({'error': 'Invalid QR code data format'}, status=400)
         if not isinstance(qr_data, dict):
             return JsonResponse({'error': 'Invalid QR code data format'}, status=400)
         card_type = qr_data.get('type')
