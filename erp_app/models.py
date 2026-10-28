@@ -1,3 +1,4 @@
+import secrets
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
@@ -299,11 +300,21 @@ class IDCard(models.Model):
         ('student', 'Student'),
         ('employee', 'Employee'),
     ]
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('revoked', 'Revoked'),
+    ]
     card_type = models.CharField(max_length=20, choices=CARD_TYPE_CHOICES)
     student = models.ForeignKey(Student, on_delete=models.CASCADE, null=True, blank=True, related_name='id_cards')
     employee = models.ForeignKey('Employee', on_delete=models.CASCADE, null=True, blank=True, related_name='id_cards')
     file = models.FileField(upload_to='id_cards/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    code = models.CharField(max_length=100, blank=True, null=True)
+    verify_token = models.CharField(max_length=64, unique=True, blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    issued_at = models.DateTimeField(auto_now_add=True, null=True)
+    expires_at = models.DateTimeField(blank=True, null=True)
+    show_contact_publicly = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['-uploaded_at']
@@ -320,6 +331,11 @@ class IDCard(models.Model):
             return self.employee.name
         return 'Unknown'
 
+    def generate_token(self):
+        token = secrets.token_urlsafe(16)
+        self.verify_token = token
+        return token
+
 
 class Employee(models.Model):
     EMPLOYEE_TYPES = [
@@ -328,12 +344,20 @@ class Employee(models.Model):
         ('mentor', 'Mentor'),
         ('admin', 'Admin'),
     ]
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+        ('resigned', 'Resigned'),
+    ]
     name = models.CharField(max_length=200)
     email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=20, blank=True)
+    employee_code = models.CharField(max_length=50, unique=True, blank=True, null=True)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     role = models.CharField(max_length=200, blank=True)
     photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
     employee_type = models.CharField(max_length=20, choices=EMPLOYEE_TYPES, default='staff')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     joined_date = models.DateField(default=datetime.date.today)
 
     class Meta:
@@ -341,6 +365,22 @@ class Employee(models.Model):
 
     def __str__(self):
         return self.name
+
+    def generate_employee_code(self):
+        from django.utils import timezone
+        year = self.joined_date.year if self.joined_date else timezone.now().year
+        prefix = f'AB-{year}-'
+        last = Employee.objects.filter(employee_code__startswith=prefix).order_by('employee_code').last()
+        if last and last.employee_code:
+            try:
+                seq = int(last.employee_code.split('-')[-1]) + 1
+            except Exception:
+                seq = Employee.objects.filter(employee_code__startswith=prefix).count() + 1
+        else:
+            seq = 1
+        code = f'{prefix}{seq:05d}'
+        self.employee_code = code
+        return code
 
 
 class Notification(models.Model):
@@ -500,3 +540,15 @@ class Attendance(models.Model):
 
     def __str__(self):
         return f"{self.student.name} - {self.course.name} - {self.date} - {self.get_status_display()}"
+
+
+class VerificationScan(models.Model):
+    card = models.ForeignKey(IDCard, on_delete=models.CASCADE, related_name='verification_scans')
+    scanned_at = models.DateTimeField(auto_now_add=True)
+    result = models.CharField(max_length=50)
+
+    class Meta:
+        ordering = ['-scanned_at']
+
+    def __str__(self):
+        return f"{self.card} - {self.result} at {self.scanned_at}"
