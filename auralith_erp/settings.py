@@ -46,6 +46,13 @@ for configured_host in allowed_hosts.split(','):
         else:
             CSRF_TRUSTED_ORIGINS.append(f'https://{parsed_host.netloc}')
 
+render_host = 'erp-1-u9vu.onrender.com'
+if render_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(render_host)
+render_origin = f'https://{render_host}'
+if render_origin not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(render_origin)
+
 if not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['erp.auralithbit.com.np', 'localhost', '127.0.0.1']
 
