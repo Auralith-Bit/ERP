@@ -13,14 +13,36 @@ INTERN = 'intern'
 def get_user_roles(user):
     if not user.is_authenticated:
         return []
+    try:
+        from django.core.cache import cache
+        key = f'user_roles:{getattr(user, "pk", "anon")}'
+        cached = cache.get(key)
+        if cached is not None:
+            return cached
+    except Exception:
+        cached = None
     roles = set()
     if user.is_superuser:
         roles.add(SUPER_ADMIN)
-    for group in user.groups.all():
-        roles.add(group.name)
-    if hasattr(user, 'student_profile') and user.student_profile:
-        roles.add(STUDENT)
-    return list(roles)
+    try:
+        for group in user.groups.all():
+            roles.add(group.name)
+    except Exception:
+        pass
+    try:
+        if hasattr(user, 'student_profile') and user.student_profile:
+            roles.add(STUDENT)
+    except Exception:
+        pass
+    result = list(roles)
+    try:
+        from django.core.cache import cache
+        key = f'user_roles:{getattr(user, "pk", "anon")}'
+        cache.set(key, 300)
+        cache.set(key, result, 300)
+    except Exception:
+        pass
+    return result
 
 
 def has_role(user, *roles):

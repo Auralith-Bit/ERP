@@ -1,7 +1,7 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 from django.contrib.auth.models import Group
-from .models import CourseEnrollment, Certificate, Student
+from .models import CourseEnrollment, Certificate, Student, Employee, IDCard
 
 
 @receiver(post_save, sender=Student)
@@ -36,10 +36,6 @@ def auto_create_course_certificate(sender, instance, **kwargs):
                 certificate_type='course',
                 status='issued'
             )
-
-from django.db.models.signals import pre_delete, post_save
-from django.dispatch import receiver
-from .models import Employee, Student, IDCard
 
 
 @receiver(pre_delete, sender=Employee)

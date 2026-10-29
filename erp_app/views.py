@@ -68,6 +68,7 @@ def paste_rgba(base, overlay, xy):
     base.alpha_composite(temp)
     return base
 
+from erp_app.idcards import render
 from .roles import (get_user_roles, has_role,
     SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF, STUDENT, INTERN,
     role_required, teaching_staff_required, normal_staff_required, staff_required)
@@ -1212,14 +1213,54 @@ def _generate_saved_id_card(card_type, owner_id, course_id=None, existing_card=N
     draw.rounded_rectangle((70, 760, 1030, 805), radius=18, fill='#2F5BD7')
     draw_label((550, 784), 'AURALITH BIT | BHAIRAHAWA, SNP-08 | 9766715783', '#F3F7FF', choose_font(bold_fonts, 22), anchor='mm')
 
-    output = io.BytesIO()
-    image.save(output, format='PNG', optimize=True)
-    card = existing_card or IDCard(card_type=card_type, student=owner if card_type == 'student' else None,
-                                   employee=owner if card_type == 'employee' else None)
-    if existing_card:
-        card.file.delete(save=False)
-    card.file.save(f'{code}.png', ContentFile(output.getvalue()), save=True)
-    return card
+    try:
+        from django.conf import settings
+        base_url = getattr(settings, 'PUBLIC_BASE_URL', None) or 'https://erp.auralithbit.com.np'
+        qr_url = f"{base_url.rstrip('/')}/verify/{code}/"
+        if card_type == 'employee':
+            data = {'code': code, 'name': owner.name, 'designation': role_label, 'role': role_label, 'department': dept_label, 'contact': contact_value, 'phone': contact_value, 'qr_url': qr_url, 'photo': getattr(owner, 'photo', None)}
+        else:
+            data = {'code': code, 'name': owner.name, 'designation': role_label, 'role': role_label, 'department': dept_label, 'contact': contact_value, 'phone': contact_value, 'qr_url': qr_url, 'photo': getattr(owner, 'photo', None)}
+        png_bytes = render.render_id_card_png(data)
+        card = existing_card or IDCard(card_type=card_type, student=owner if card_type == 'student' else None,
+                                       employee=owner if card_type == 'employee' else None)
+        if existing_card:
+            try:
+                card.file.delete(save=False)
+            except Exception:
+                pass
+        # Set security fields
+        try:
+            card.code = code
+            if not card.verify_token:
+                card.verify_token = secrets.token_urlsafe(16)
+            card.status = 'active'
+        except Exception:
+            pass
+        card.file.save(f'{code}.png', ContentFile(png_bytes), save=True)
+        try:
+            card.save()
+        except Exception:
+            pass
+        return card
+    except Exception as e:
+        logger.exception('Failed to render new card, falling back to old renderer')
+        output = io.BytesIO()
+        image.save(output, format='PNG', optimize=True)
+        card = existing_card or IDCard(card_type=card_type, student=owner if card_type == 'student' else None,
+                                       employee=owner if card_type == 'employee' else None)
+        if existing_card:
+            card.file.delete(save=False)
+        card.file.save(f'{code}.png', ContentFile(output.getvalue()), save=True)
+        try:
+            card.code = code
+            if not getattr(card, 'verify_token', None):
+                card.verify_token = secrets.token_urlsafe(16)
+            card.status = getattr(card, 'status', None) or 'active'
+            card.save()
+        except Exception:
+            pass
+        return card
 
 @login_required
 @require_http_methods(["DELETE"])
