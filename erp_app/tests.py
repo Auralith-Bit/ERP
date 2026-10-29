@@ -56,6 +56,25 @@ class ErpSecurityRegressionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse('my_courses'))
 
+    def test_courses_departments_and_my_courses_pages_render(self):
+        course = Course.objects.create(name='Navigation Test Course')
+        department = Department.objects.create(name='Navigation Test Department')
+
+        self.client.force_login(self.admin)
+        courses_response = self.client.get(reverse('courses'))
+        self.assertEqual(courses_response.status_code, 200)
+        self.assertContains(courses_response, reverse('course_syllabus', args=[course.pk]))
+
+        departments_response = self.client.get(reverse('departments'))
+        self.assertEqual(departments_response.status_code, 200)
+        self.assertContains(departments_response, reverse('department_edit', args=[department.pk]))
+        self.assertContains(departments_response, reverse('department_delete', args=[department.pk]))
+
+        CourseEnrollment.objects.create(student=self.student, course=course, total_fee=1000)
+        self.client.force_login(self.student_user)
+        my_courses_response = self.client.get(reverse('my_courses'))
+        self.assertEqual(my_courses_response.status_code, 200)
+
     def test_id_card_delete_uses_registered_delete_endpoint(self):
         self.client.force_login(self.admin)
         page = self.client.get(reverse('id_generation'))
