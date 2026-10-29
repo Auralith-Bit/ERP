@@ -56,6 +56,19 @@ class ErpSecurityRegressionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse('my_courses'))
 
+    def test_id_card_delete_uses_registered_delete_endpoint(self):
+        self.client.force_login(self.admin)
+        page = self.client.get(reverse('id_generation'))
+        delete_url = reverse('delete_id_card', args=[self.card.pk])
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, f'data-delete-url="{delete_url}"')
+
+        response = self.client.delete(delete_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'success')
+        self.assertFalse(IDCard.objects.filter(pk=self.card.pk).exists())
+        self.assertFalse(self.card.file.storage.exists(self.card.file.name))
+
     def test_id_verification_uses_signed_database_identity(self):
         course = Course.objects.create(name='Audit Course')
         qr_payload = {
