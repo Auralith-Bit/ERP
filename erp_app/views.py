@@ -68,7 +68,6 @@ def paste_rgba(base, overlay, xy):
     base.alpha_composite(temp)
     return base
 
-from erp_app.idcards import render
 from .roles import (get_user_roles, has_role,
     SUPER_ADMIN, TEACHING_STAFF, NORMAL_STAFF, STUDENT, INTERN,
     role_required, teaching_staff_required, normal_staff_required, staff_required)
