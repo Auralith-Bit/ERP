@@ -26,7 +26,7 @@ if not DEBUG and (SECRET_KEY.startswith('django-insecure-') or SECRET_KEY.starts
 
 allowed_hosts = os.environ.get(
     'ALLOWED_HOSTS',
-    'erp.auralithbit.com.np,erp-1-u9vu.onrender.com,erp-akwh.onrender.com,localhost,127.0.0.1'
+    'erp.auralithbit.com.np,erp-1-u9vu.onrender.com,erp-akwh.onrender.com,auralitherp.onrender.com,*.onrender.com,localhost,127.0.0.1'
 )
 ALLOWED_HOSTS = []
 CSRF_TRUSTED_ORIGINS = []
