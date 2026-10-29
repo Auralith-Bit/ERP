@@ -50,6 +50,12 @@ class ErpSecurityRegressionTests(TestCase):
         self.assertEqual(self.client.get(reverse('workbench')).status_code, 302)
         self.assertEqual(self.client.get(reverse('id_generation')).status_code, 302)
 
+    def test_student_dashboard_renders_my_courses_link(self):
+        self.client.force_login(self.student_user)
+        response = self.client.get(reverse('dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse('my_courses'))
+
     def test_id_verification_uses_signed_database_identity(self):
         course = Course.objects.create(name='Audit Course')
         qr_payload = {

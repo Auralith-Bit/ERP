@@ -26,6 +26,7 @@ urlpatterns = [
     path('mentors/add/', views.mentor_add, name='mentor_add'),
     path('mentors/<int:mentor_id>/edit/', views.mentor_edit, name='mentor_edit'),
     path('mentors/<int:mentor_id>/delete/', views.mentor_delete, name='mentor_delete'),
+    path('my-courses/', views.my_courses, name='my_courses'),
     path('courses/', views.courses, name='courses'),
     path('courses/add/', views.course_add, name='course_add'),
     path('courses/<int:course_id>/edit/', views.course_edit, name='course_edit'),
