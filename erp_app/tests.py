@@ -3,6 +3,7 @@ import tempfile
 from datetime import datetime
 
 from django.contrib.auth.models import Group, User
+from django.core.cache import cache
 from django.core import signing
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
@@ -30,6 +31,9 @@ class ErpSecurityRegressionTests(TestCase):
             file=ContentFile(b'private card data', name='student-a.png'),
         )
         self.admin = User.objects.create_superuser('audit_admin', 'audit-admin@example.test', 'not-used')
+        for user in (self.student_user, self.other_student_user, self.admin):
+            cache.delete(f'user_roles:{user.pk}')
+            self.addCleanup(cache.delete, f'user_roles:{user.pk}')
 
     def test_media_requires_login_and_is_scoped_to_student(self):
         url = reverse('protected_media', kwargs={'file_path': self.card.file.name})
@@ -74,6 +78,18 @@ class ErpSecurityRegressionTests(TestCase):
         self.client.force_login(self.student_user)
         my_courses_response = self.client.get(reverse('my_courses'))
         self.assertEqual(my_courses_response.status_code, 200)
+
+    def test_staff_student_my_courses_renders_receipt_action(self):
+        course = Course.objects.create(name='Staff Student Course')
+        enrollment = CourseEnrollment.objects.create(student=self.student, course=course, total_fee=1000)
+        teaching_staff = Group.objects.get_or_create(name='teaching_staff')[0]
+        self.student_user.groups.add(teaching_staff)
+        cache.delete(f'user_roles:{self.student_user.pk}')
+
+        self.client.force_login(self.student_user)
+        response = self.client.get(reverse('my_courses'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse('send_receipt', args=[enrollment.pk]))
 
     def test_id_card_delete_uses_registered_delete_endpoint(self):
         self.client.force_login(self.admin)

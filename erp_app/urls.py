@@ -49,6 +49,7 @@ urlpatterns = [
     path('monthly-expenses/<int:expense_id>/delete/', views.delete_monthly_expense, name='delete_monthly_expense'),
     path('payments/<int:payment_id>/edit/', views.payment_edit, name='payment_edit'),
     path('payments/<int:payment_id>/delete/', views.payment_delete, name='payment_delete'),
+    path('payments/enrollments/<int:enrollment_id>/send-receipt/', views.send_payment_receipt, name='send_receipt'),
     path('project-payments/<int:payment_id>/edit/', views.project_payment_edit, name='project_payment_edit'),
     path('project-payments/<int:payment_id>/delete/', views.project_payment_delete, name='project_payment_delete'),
     path('attendance/', views.attendance, name='attendance'),
