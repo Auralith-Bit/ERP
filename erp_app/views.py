@@ -2302,6 +2302,55 @@ def certificates(request):
     return render(request, 'erp_app/certificates.html', context)
 
 
+def internship_verification_directory(request):
+    """Public directory of internship certificates that are currently issued."""
+    certificates = Certificate.objects.filter(
+        certificate_type='internship',
+        status='issued',
+    ).select_related('student', 'course').order_by('-issue_date', 'student__name')
+
+    query = request.GET.get('q', '').strip()
+    if query:
+        certificates = certificates.filter(
+            Q(student__name__icontains=query) |
+            Q(certificate_number__icontains=query) |
+            Q(program_title__icontains=query)
+        )
+
+    return render(request, 'erp_app/internship_verification_directory.html', {
+        'certificates': certificates,
+        'verified_count': Certificate.objects.filter(
+            certificate_type='internship', status='issued'
+        ).count(),
+        'search_query': query,
+    })
+
+
+def internship_verification_detail(request, certificate_number):
+    """Public, minimal verification record for one issued internship certificate."""
+    certificate = get_object_or_404(
+        Certificate.objects.select_related('student', 'course'),
+        certificate_number=certificate_number,
+        certificate_type='internship',
+        status='issued',
+    )
+    return render(request, 'erp_app/internship_verification_detail.html', {
+        'certificate': certificate,
+    })
+
+
+def internship_verification_qr(request):
+    """Render the single permanent QR code for the public internship directory."""
+    directory_url = request.build_absolute_uri(reverse('internship_verification_directory'))
+    qr_image = qrcode.make(directory_url)
+    output = io.BytesIO()
+    qr_image.save(output, format='PNG')
+    response = HttpResponse(output.getvalue(), content_type='image/png')
+    if request.GET.get('download') == '1':
+        response['Content-Disposition'] = 'attachment; filename="auralith-bit-internship-verification-qr.png"'
+    return response
+
+
 @login_required
 def issue_certificate(request):
     if not has_role(request.user, SUPER_ADMIN) and not request.user.has_perm('erp_app.can_issue_certificates'):
