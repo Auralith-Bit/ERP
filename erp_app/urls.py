@@ -54,6 +54,7 @@ urlpatterns = [
     path('project-payments/<int:payment_id>/delete/', views.project_payment_delete, name='project_payment_delete'),
     path('attendance/', views.attendance, name='attendance'),
     path('verify-internships/', views.internship_verification_directory, name='internship_verification_directory'),
+    path('verify-internships/qr/', views.internship_verification_qr_page, name='internship_verification_qr_page'),
     path('verify-internships/qr.png', views.internship_verification_qr, name='internship_verification_qr'),
     path('verify-internships/<str:certificate_number>/', views.internship_verification_detail, name='internship_verification_detail'),
     path('certificates/', views.certificates, name='certificates'),
