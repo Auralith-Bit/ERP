@@ -2339,6 +2339,10 @@ def internship_verification_detail(request, certificate_number):
     })
 
 
+def internship_verification_qr_page(request):
+    return render(request, 'erp_app/internship_verification_qr.html')
+
+
 def internship_verification_qr(request):
     """Render the single permanent QR code for the public internship directory."""
     directory_url = request.build_absolute_uri(reverse('internship_verification_directory'))
