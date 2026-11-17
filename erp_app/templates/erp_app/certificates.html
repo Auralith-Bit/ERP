@@ -8,7 +8,10 @@
         <p>View and manage all certificates</p>
     </div>
     {% if is_admin %}
-    <a href="{% url 'issue_certificate' %}" class="btn-primary"><i class="ph ph-plus"></i> Issue Certificate</a>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="{% url 'internship_verification_qr_page' %}" class="btn-text"><i class="ph ph-qr-code"></i> Internship QR</a>
+        <a href="{% url 'issue_certificate' %}" class="btn-primary"><i class="ph ph-plus"></i> Issue Certificate</a>
+    </div>
     {% endif %}
 </header>
 

@@ -1,0 +1,31 @@
+{% extends 'erp_app/base.html' %}
+{% block title %}Verify {{ certificate.certificate_number }} | Auralith Bit{% endblock %}
+{% block content %}
+<style>
+.public-verify{max-width:760px;margin:30px auto;background:var(--surface);border:1px solid var(--panel-border);border-radius:20px;overflow:hidden}
+.public-verify-head{padding:28px;text-align:center;background:linear-gradient(120deg,#172554,#3730a3 58%,#0f766e);color:#fff}
+.public-verify-head h1{margin:8px 0;font-size:27px}.public-verify-body{padding:28px}
+.public-verify-row{display:flex;justify-content:space-between;gap:18px;padding:13px 0;border-bottom:1px solid var(--panel-border)}
+.public-verify-row span:first-child{color:var(--text-muted)}.public-verify-row strong{text-align:right;color:var(--text-dark)}
+.public-verify-ok{color:#15803d;font-weight:800}
+@media(max-width:520px){.public-verify-row{display:block}.public-verify-row strong{display:block;text-align:left;margin-top:5px}}
+</style>
+<section class="public-verify">
+ <header class="public-verify-head">
+  <div style="font-size:13px;letter-spacing:3px;font-weight:800">AURALITH BIT</div>
+  <h1>Internship Successfully Completed</h1>
+  <div>Official ERP Verification</div>
+ </header>
+ <div class="public-verify-body">
+  <p class="public-verify-ok">✓ VERIFIED — This certificate is currently valid in Auralith Bit ERP.</p>
+  <div class="public-verify-row"><span>Intern name</span><strong>{{ certificate.student.name }}</strong></div>
+  <div class="public-verify-row"><span>Internship / Program</span><strong>{{ certificate.display_program_title }}</strong></div>
+  <div class="public-verify-row"><span>Certificate ID</span><strong>{{ certificate.certificate_number }}</strong></div>
+  <div class="public-verify-row"><span>Start date</span><strong>{{ certificate.effective_program_start_date|default:"Not specified" }}</strong></div>
+  <div class="public-verify-row"><span>Completion / issue date</span><strong>{{ certificate.issue_date|date:"F d, Y" }}</strong></div>
+  <div class="public-verify-row"><span>Issuing organization</span><strong>Auralith Bit</strong></div>
+  <p style="margin:24px 0 0;color:var(--text-muted);font-size:13px">This verification is generated from the official Auralith Bit ERP record. If this certificate is revoked, this verification page will no longer show a valid record.</p>
+  <a href="{% url 'internship_verification_directory' %}" style="display:inline-block;margin-top:16px;color:#2563eb">← View all verified interns</a>
+ </div>
+</section>
+{% endblock %}

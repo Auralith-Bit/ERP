@@ -1,0 +1,50 @@
+{% extends 'erp_app/base.html' %}
+{% load static %}
+{% block title %}Internship Verification | Auralith Bit{% endblock %}
+{% block content %}
+<style>
+.verify-wrap{max-width:1100px;margin:0 auto;padding:12px 0 40px}
+.verify-hero{background:linear-gradient(120deg,#172554,#3730a3 58%,#0f766e);color:#fff;border-radius:22px;padding:34px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.verify-brand{font-size:13px;letter-spacing:3px;font-weight:800;opacity:.85}
+.verify-hero h1{font-size:clamp(26px,4vw,40px);margin:10px 0}
+.verify-hero p{margin:0;color:#dbeafe}
+.verify-count{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:18px 24px;min-width:150px}
+.verify-count strong{display:block;font-size:34px}
+.verify-tools{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}
+.verify-tools input{flex:1;min-width:220px;padding:12px 14px;border:1px solid var(--panel-border);border-radius:10px;background:var(--surface);color:var(--text-dark)}
+.verify-btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border-radius:10px;background:#2563eb;color:white;text-decoration:none;border:0;font-weight:700;cursor:pointer}
+.verify-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.verify-card{background:var(--surface);border:1px solid var(--panel-border);border-radius:16px;padding:20px}
+.verify-status{color:#15803d;font-weight:800;font-size:12px;letter-spacing:.6px}
+.verify-card h3{margin:10px 0 5px;color:var(--text-dark)}
+.verify-muted{color:var(--text-muted);font-size:13px}
+.verify-id{font-family:monospace;font-size:12px;background:var(--panel-bg);padding:7px 9px;border-radius:7px;display:inline-block;margin:12px 0}
+@media(max-width:600px){.verify-hero{padding:24px}.verify-count{width:100%}}
+</style>
+<div class="verify-wrap">
+  <section class="verify-hero">
+    <div><div class="verify-brand">AURALITH BIT · DESIGN. DEVELOP. DELIVER.</div><h1>Internship Verification Portal</h1><p>Official verification of successfully completed internships, powered by Auralith Bit ERP.</p></div>
+    <div class="verify-count"><strong>{{ verified_count }}</strong><span>Verified internships</span></div>
+  </section>
+  <form class="verify-tools" method="get">
+    <input type="search" name="q" value="{{ search_query }}" placeholder="Search intern name or certificate ID..." aria-label="Search verified interns">
+    <button class="verify-btn" type="submit">Search</button>
+    {% if search_query %}<a class="verify-btn" href="{% url 'internship_verification_directory' %}" style="background:#64748b">Clear</a>{% endif %}
+  </form>
+  <div class="verify-grid">
+    {% for cert in certificates %}
+    <article class="verify-card">
+      <div class="verify-status">✓ VERIFIED · SUCCESSFULLY COMPLETED</div>
+      <h3>{{ cert.student.name }}</h3>
+      <div class="verify-muted">{{ cert.display_program_title }}</div>
+      <div class="verify-id">{{ cert.certificate_number }}</div>
+      <div class="verify-muted">Issued: {{ cert.issue_date|date:"M d, Y" }}</div>
+      <p style="margin:16px 0 0"><a class="verify-btn" href="{% url 'internship_verification_detail' cert.certificate_number %}">View verification</a></p>
+    </article>
+    {% empty %}
+    <div class="verify-card"><h3>No verified internships found</h3><p class="verify-muted">{% if search_query %}Try another name or certificate ID.{% else %}There are currently no issued internship certificates in the public directory.{% endif %}</p></div>
+    {% endfor %}
+  </div>
+  <p class="verify-muted" style="text-align:center;margin-top:28px">Verification records are retrieved live from Auralith Bit ERP. Only issued internship certificates appear here.</p>
+</div>
+{% endblock %}
